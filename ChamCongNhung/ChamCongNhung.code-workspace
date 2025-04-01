@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../ChamCong_BE"
+		},
+		{
+			"path": "../ChamCong_FE"
+		}
+	],
+	"settings": {}
+}

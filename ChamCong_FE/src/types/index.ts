@@ -1,11 +1,22 @@
 // types/index.ts
 export interface IFingerprint {
   id: string;
-  name?: string; // Thêm trường name (tùy chọn nếu không bắt buộc)
+  name: string;
   timestamp: string;
+  date: string;
+  status: Status;
 }
 
-export interface IFingerprintData {
-  count: number;
-  ids: number[];
+export enum Status {
+  IN = "IN",
+  OUT = "OUT",
+}
+
+
+export interface ColumnType{
+  id: string;
+  name?: string;
+  timestamp?: string;
+  date?: string;
+  status?: Status;
 }

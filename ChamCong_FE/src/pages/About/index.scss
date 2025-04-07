@@ -1,0 +1,22 @@
+.ant-segmented {
+  padding: 4px;
+  font-weight: 500;
+  .ant-segmented-item {
+    flex: 1;
+    text-align: center;
+  }
+  .ant-segmented-item-selected {
+    &:hover {
+      background: white;
+    }
+  }
+}
+
+.attendance-table {
+  .ant-table-thead > tr > th {
+    background-color: white;
+    &::before {
+      display: none;
+    }
+  }
+}

@@ -9,10 +9,8 @@ export default function HomeLayout({children}: HomeLayoutProps) {
   return (
     <div className="relative min-h-screen">
       <Navbar />
-      {/* <Header /> */}
-      <main className="pt-[64px]">
-        {children}
-      </main>
+      <hr />
+      <div className="">{children}</div>
     </div>
   );
 }

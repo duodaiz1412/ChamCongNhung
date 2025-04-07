@@ -1,17 +1,66 @@
-import {Button} from "@chakra-ui/react";
-import { useNavigate } from "react-router";
+import {DeviceStatus} from "@components/DeviceStatus";
+import {Button, Segmented} from "antd";
+import {useState} from "react";
+import {useNavigate} from "react-router";
+import "./index.scss";
+import DetailAttendance from "@components/DetailAttendance";
+import Register from "@components/Register";
 
 export default function About(): JSX.Element {
+  const [tab, setTab] = useState("tracking");
+
+  const tabItems = [
+    {
+      key: "tracking",
+      label: "Chấm công",
+      value: "tracking",
+    },
+    {
+      key: "register",
+      label: "Đăng ký vân tay",
+      value: "register",
+    },
+    {
+      key: "manager",
+      label: "Quản lý vân tay",
+      value: "manager",
+    },
+  ];
+
+  const renderTabContent = () => {
+    switch (tab) {
+      case "tracking":
+        return <DetailAttendance />;
+      case "register":
+        return <Register />;
+      case "manager":
+        return <Register />;
+      default:
+        return null;
+    }
+  };
+
   const navigate = useNavigate();
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full gap-4  mx-4 my-3">
-      <div className="text-4xl font-bold text-center">About</div>
-      <div className="text-2xl text-center">This is about page</div>
+    <div className="container flex flex-col w-full h-full gap-6 p-6">
+      <div className="text-3xl font-bold">Hệ Thống Điểm Danh Vân Tay</div>
+      <DeviceStatus />
+      <div className="flex flex-col gap-3">
+        <Segmented
+          options={tabItems}
+          value={tab}
+          onChange={(value) => {
+            setTab(value.toString());
+          }}
+          size="large"
+          className="w-full"
+        />
+        <div className="attendance-table">{renderTabContent()}</div>
+      </div>
+
       <Button
-        colorScheme="brand"
-        paddingX={"12px"}
-        background="#4f4f4f"
-        color="#FFF"
+        color="default"
+        className="w-fit mx-auto"
         onClick={() => navigate("/")}
       >
         Go back

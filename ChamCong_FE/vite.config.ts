@@ -12,6 +12,7 @@ export default defineConfig({
     alias: {
       "@": "/src",
       "@redux": path.resolve(__dirname, "./src/redux"),
+      "@components": path.resolve(__dirname, "./src/components"),
     },
   },
   css: {

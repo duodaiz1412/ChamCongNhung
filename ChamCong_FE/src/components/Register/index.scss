@@ -1,0 +1,66 @@
+.ant-alert {
+  padding: 16px;
+  background-color: #f0fdf4;
+
+  &.register-success {
+    border-color: #16a34a;
+    .ant-alert-message {
+      flex-direction: column;
+      margin-bottom: 0px;
+      color: #15803d;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .ant-alert-description {
+      color: #15803d;
+      font-size: 14px;
+    }
+    .ant-alert-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: auto;
+      margin-right: 16px;
+    }
+  }
+
+  &.register-error {
+    background-color: #ffffff;
+    border-color: #fc9c9e;
+    .ant-alert-message {
+      flex-direction: column;
+      margin-bottom: 0px;
+      color: #ef4444;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .ant-alert-description {
+      color: #ef4444;
+      font-size: 14px;
+    }
+    .ant-alert-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: auto;
+      margin-right: 16px;
+    }
+  }
+}
+
+.register-form {
+  flex-direction: column;
+  gap: 0px;
+  .ant-form-item {
+    margin-bottom: 2px;
+  }
+  .ant-input {
+    height: 36px;
+  }
+}
+
+.submit-button {
+  &:hover {
+    background-color: #2F2F31 !important;
+  }
+}

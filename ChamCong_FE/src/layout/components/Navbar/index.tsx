@@ -1,98 +1,67 @@
 "use client";
+import {Layout, Menu, Space, Button} from "antd";
+import {BellOutlined, UserOutlined} from "@ant-design/icons";
 
-import {
-  Box,
-  Flex,
-  Text,
-  Button,
-  Stack,
-  useBreakpointValue,
-  Link,
-} from "@chakra-ui/react";
-import { useColorModeValue } from "@chakra-ui/system";
+const {Header} = Layout;
 
-export default function Navbar() {
+function Navbar() {
+  const userMenuItems = [
+    {
+      key: "profile",
+      icon: <UserOutlined />,
+      label: "Hồ sơ",
+    },
+    {
+      key: "settings",
+      icon: <UserOutlined />,
+      label: "Cài đặt",
+    },
+    {
+      key: "logout",
+      icon: <UserOutlined />,
+      label: "Đăng xuất",
+    },
+  ];
+
   return (
-    <Box position={"fixed"} w={"100%"} zIndex={1}>
-      <Flex
-        bg={useColorModeValue("white", "gray.800")}
-        color={useColorModeValue("gray.600", "white")}
-        minH={"60px"}
-        py={{ base: 2 }}
-        px={{ base: 4 }}
-        borderBottom={1}
-        borderStyle={"solid"}
-        borderColor={useColorModeValue("gray.200", "gray.900")}
-        align={"center"}
+    <div className="container mx-auto">
+      <Header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: "rgba(255, 255, 255, 0.8)",
+          backdropFilter: "blur(10px)",
+          padding: "0",
+        }}
       >
-        {/* First Stack: Logo */}
-        <Stack direction={"row"} align={"center"} marginLeft={5}>
-          <Text
-            textAlign={useBreakpointValue({ base: "center", md: "left" })}
-            fontFamily={"heading"}
-            color={useColorModeValue("gray.800", "white")}
+        <div style={{display: "flex", alignItems: "center", gap: "16px"}}>
+          <div
+            className="flex items-center gap-1.5 text-base font-bold"
           >
-            Logo
-          </Text>
-        </Stack>
+            <span style={{color: "", fontSize: "24px"}}>Chấm công</span>
+            <span className="text-blue-500 text-[26px] tracking-wider">
+              PTIT
+            </span>
+          </div>
+        </div>
 
-        {/* Second Stack: Navigation Links (Home, Shop, Library, About) */}
-        <Stack
-          direction={"row"}
-          gap={6}
-          flex={1}
-          justify={"center"}
-          align={"center"}
-          marginLeft={"24"}
-          display={{ base: "none", md: "flex" }}
-        >
-          <Button asChild variant={"ghost"} colorScheme="blue">
-            <Link href="/">Home</Link>
-          </Button>
-          <Button asChild variant={"ghost"} colorScheme="blue">
-            <Link href="/attendance">Attendance</Link>
-          </Button>
-          <Button asChild variant={"ghost"} colorScheme="blue">
-            <Link href="/library">Library</Link>
-          </Button>
-          <Button asChild variant={"ghost"} colorScheme="blue">
-            <Link href="/about">About</Link>
-          </Button>
-        </Stack>
-
-        {/* Third Stack: User Actions (Sign Up, Login) */}
-        <Stack
-          direction={"row"}
-          gap={6}
-          justify={"flex-end"}
-          align={"center"}
-          marginRight={5}
-          display={{ base: "none", md: "flex" }}
-        >
-          <Button
-            asChild
-            fontSize={"sm"}
-            fontWeight={400}
-            variant={"ghost"}
-            colorScheme="blue"
-          >
-            <Link href="#">Sign Up</Link>
-          </Button>
-          <Button
-            asChild
-            display={{ base: "none", md: "inline-flex" }}
-            fontSize={"sm"}
-            fontWeight={600}
-            color={"white"}
-            bg={"pink.400"}
-            _hover={{
-              bg: "pink.300",
-            }}
-          >
-            <Link href="#">Login</Link>
-          </Button>
-        </Stack>
-      </Flex>
-    </Box>
+        <Space>
+          <Button type="text" icon={<BellOutlined />} />
+          <Menu
+            mode="horizontal"
+            items={userMenuItems}
+            triggerSubMenuAction="click"
+            style={{border: "none"}}
+          />
+        </Space>
+      </Header>
+    </div>
   );
 }
+
+export default Navbar;

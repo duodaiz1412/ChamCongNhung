@@ -1,0 +1,143 @@
+import {Alert, Button, Form, Input} from "antd";
+import FormItem from "antd/es/form/FormItem";
+import {ErrorMessage, Formik} from "formik";
+import {useState} from "react";
+import "./index.scss";
+import {CircleAlert, CircleCheckBig, Fingerprint} from "lucide-react";
+import * as Yup from "yup";
+interface IRegister {
+  name: string;
+  msv: string;
+}
+
+export default function Register() {
+  const [error, setError] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const initialValues: IRegister = {
+    name: "",
+    msv: "",
+  };
+  const validationSchema = Yup.object({
+    name: Yup.string().required("Tên là bắt buộc"),
+    msv: Yup.string().required("Mã sinh viên là bắt buộc"),
+  });
+  const handleAddRegister = (
+    values: IRegister,
+    {setSubmitting}: {setSubmitting: (isSubmitting: boolean) => void},
+  ) => {
+    console.log(values);
+    setSubmitting(false);
+  };
+  return (
+    <div className="border border-gray rounded-md p-6 flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center">
+          <div className="text-2xl font-bold">Đăng ký vân tay</div>
+        </div>
+        <div className="text-sm text-gray-500">
+          Đăng ký vân tay để sử dụng hệ thống điểm danh vân tay
+        </div>
+      </div>
+      {success && (
+        <Alert
+          message="Thành công"
+          description={`Đã đăng ký vân tay thành công cho ${name}`}
+          type="success"
+          showIcon
+          className="register-success"
+          icon={<CircleCheckBig />}
+        />
+      )}
+      {error && (
+        <Alert
+          message="Lỗi"
+          className="register-error"
+          description="Đăng ký vân tay thất bại"
+          type="error"
+          showIcon
+          icon={<CircleAlert />}
+        />
+      )}
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="register-form">
+          <Formik
+            initialValues={initialValues}
+            enableReinitialize
+            validationSchema={validationSchema}
+            onSubmit={handleAddRegister}
+            validateOnBlur={true}
+            validateOnChange={true}
+          >
+            {({handleChange, isSubmitting, handleSubmit, values}) => {
+              return (
+                <div className="flex flex-col gap-2">
+                  <Form layout="vertical" onFinish={handleSubmit}>
+                    <div className="flex flex-col mb-3">
+                      <FormItem
+                        label="Họ và tên"
+                        name="name"
+                        className="font-semibold"
+                      >
+                        <Input
+                          placeholder="Nhập tên"
+                          name="name"
+                          onChange={handleChange}
+                          disabled={isSubmitting}
+                          value={values.name}
+                        />
+                      </FormItem>
+                      <ErrorMessage
+                        name="name"
+                        component="div"
+                        className="text-red-500"
+                      />
+                    </div>
+
+                    <FormItem
+                      label="Mã sinh viên"
+                      name="msv"
+                      className="font-semibold"
+                    >
+                      <Input
+                        placeholder="Nhập mã sinh viên"
+                        name="msv"
+                        onChange={handleChange}
+                        disabled={isSubmitting}
+                        value={values.msv}
+                      />
+                    </FormItem>
+                    <ErrorMessage
+                      name="msv"
+                      component="div"
+                      className="text-red-500"
+                    />
+
+                    <div className="flex justify-end mt-6">
+                      <Button
+                        className="w-full bg-black submit-button p-4 font-semibold h-9"
+                        type="primary"
+                        htmlType="submit"
+                        loading={isSubmitting}
+                      >
+                        <Fingerprint className="w-4 h-4" />
+                        Bắt đầu đăng ký vân tay
+                      </Button>
+                    </div>
+                  </Form>
+                </div>
+              );
+            }}
+          </Formik>
+        </div>
+        <div className="register-image border border-gray rounded-md p-6 flex flex-col items-center justify-center">
+          <div className="text-sm text-gray-500">
+            <Fingerprint className="mx-auto h-16 w-16 mb-4 opacity-50" />
+            <div className="text-center">
+              Đặt ngón tay lên cảm biến để đăng ký vân tay
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

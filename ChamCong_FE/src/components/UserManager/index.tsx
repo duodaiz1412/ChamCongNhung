@@ -2,6 +2,7 @@ import {ColumnType} from "@/types";
 import {Status} from "@/types";
 import {TableColumnType} from "antd";
 import Table from "antd/es/table";
+import {Pen, Trash2} from "lucide-react";
 import {useState} from "react";
 
 interface AttendanceRecord {
@@ -12,7 +13,7 @@ interface AttendanceRecord {
   status: Status;
 }
 
-export default function DetailAttendance() {
+export default function UserManager() {
   const [data, setData] = useState<AttendanceRecord[]>([
     {
       id: "1",
@@ -70,16 +71,15 @@ export default function DetailAttendance() {
       width: 250,
     },
     {
-      title: "Trạng thái",
-      dataIndex: "status",
-      key: "status",
+      title: "Hành động",
+      dataIndex: "action",
+      key: "action",
       width: 250,
-      render: (value: Status) => {
+      render: (params) => {
         return (
-          <div
-            className={`rounded-full px-3 w-fit text-white font-semibold ${value === Status.IN ? "bg-[#22C55E]" : "bg-[#F97316]"}`}
-          >
-            {value === Status.IN ? "Vào" : "Ra"}
+          <div className="flex gap-7">
+            <Pen size={20} className="cursor-pointer" />
+            <Trash2 size={20} className="cursor-pointer" />
           </div>
         );
       },
@@ -90,10 +90,10 @@ export default function DetailAttendance() {
     <div className="border border-gray rounded-md p-6 flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <div className="flex items-center">
-          <div className="text-2xl font-bold">Danh Sách Chấm Công</div>
+          <div className="text-2xl font-bold">Quản Lý Người Dùng</div>
         </div>
         <div className="text-sm text-gray-500">
-          Danh sách chấm công của tất cả người dùng
+          Xem và quản lý tất cả người dùng trong hệ thống
         </div>
       </div>
       <Table dataSource={data} columns={columns} rowKey="id" />

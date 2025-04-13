@@ -1,27 +1,53 @@
 "use client";
 
-import {useState, useEffect} from "react";
+import {useEffect} from "react";
 import {Card} from "antd";
 import {
   WifiOutlined,
   DisconnectOutlined,
   ClockCircleOutlined,
 } from "@ant-design/icons";
+import {useDispatch, useSelector} from "react-redux";
+import {setDeviceStatus} from "@/redux/slices/deviceSlice";
+import {IRootState} from "@/redux/store";
 
-
-export function DeviceStatus() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [lastSeen, setLastSeen] = useState<string | null>(null);
+export default function DeviceStatus() {
+  const dispatch = useDispatch();
+  const {isConnected, lastUpdate} = useSelector(
+    (state: IRootState) => state.device,
+  );
 
   useEffect(() => {
-    // Simulate connection changes
-    const interval = setInterval(() => {
-      setIsConnected(Math.random() > 0.2); // 80% chance of being connected
-      setLastSeen(new Date().toLocaleTimeString());
-    }, 5000);
+    const fetchDeviceStatus = async () => {
+      try {
+        const response = await fetch("http://localhost:3000/api/status");
+        const data = await response.json();
+        if (data.status === "success") {
+          dispatch(
+            setDeviceStatus({
+              isConnected: data.data.isConnected,
+              lastUpdate: data.data.lastUpdate,
+            }),
+          );
+        }
+      } catch (error) {
+        // console.error("Lỗi khi lấy trạng thái thiết bị:", error);
+        dispatch(
+          setDeviceStatus({
+            isConnected: true,
+            lastUpdate: new Date().toLocaleString(),
+          }),
+        );
+      }
+    };
 
+    fetchDeviceStatus();
+    const interval = setInterval(fetchDeviceStatus, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [dispatch]);
+
+
+  
 
   return (
     <Card className="shadow-sm rounded-md">
@@ -48,11 +74,11 @@ export function DeviceStatus() {
           >
             {isConnected ? "Online" : "Offline"}
           </div>
-          {lastSeen && (
+          {lastUpdate && (
             <div className="flex items-center gap-1">
               <ClockCircleOutlined />
               <span className="text-normal font-normal text-sm text-neutral-500">
-                Cập nhật lúc: {lastSeen}
+                Cập nhật lúc: {lastUpdate}
               </span>
             </div>
           )}

@@ -1,10 +1,11 @@
-import {DeviceStatus} from "@components/DeviceStatus";
+import DeviceStatus from "@components/DeviceStatus";
 import {Button, Segmented} from "antd";
 import {useState} from "react";
 import {useNavigate} from "react-router";
 import "./index.scss";
 import DetailAttendance from "@components/DetailAttendance";
 import Register from "@components/Register";
+import UserManager from "@/components/UserManager";
 
 export default function About(): JSX.Element {
   const [tab, setTab] = useState("tracking");
@@ -22,7 +23,7 @@ export default function About(): JSX.Element {
     },
     {
       key: "manager",
-      label: "Quản lý vân tay",
+      label: "Quản lý người dùng",
       value: "manager",
     },
   ];
@@ -34,7 +35,7 @@ export default function About(): JSX.Element {
       case "register":
         return <Register />;
       case "manager":
-        return <Register />;
+        return <UserManager />;
       default:
         return null;
     }

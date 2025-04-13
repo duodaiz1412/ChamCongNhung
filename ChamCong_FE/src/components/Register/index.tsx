@@ -5,6 +5,8 @@ import {useState} from "react";
 import "./index.scss";
 import {CircleAlert, CircleCheckBig, Fingerprint} from "lucide-react";
 import * as Yup from "yup";
+import {useDispatch, useSelector} from "react-redux";
+import {IRootState} from "@/redux/store";
 interface IRegister {
   name: string;
   msv: string;
@@ -13,6 +15,10 @@ interface IRegister {
 export default function Register() {
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
+  const dispatch = useDispatch();
+  const {isConnected} = useSelector(
+    (state: IRootState) => state.device,
+  );
   const initialValues: IRegister = {
     name: "",
     msv: "",
@@ -32,7 +38,7 @@ export default function Register() {
     <div className="border border-gray rounded-md p-6 flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <div className="flex items-center">
-          <div className="text-2xl font-bold">Đăng ký vân tay</div>
+          <div className="text-2xl font-bold">Đăng Ký Vân Tay</div>
         </div>
         <div className="text-sm text-gray-500">
           Đăng ký vân tay để sử dụng hệ thống điểm danh vân tay
@@ -54,6 +60,16 @@ export default function Register() {
           className="register-error"
           description="Đăng ký vân tay thất bại"
           type="error"
+          showIcon
+          icon={<CircleAlert />}
+        />
+      )}
+      {!isConnected && (
+        <Alert
+          message="Lỗi"
+          className="not-connected"
+          description="Không có kết nối với thiết bị"
+          type="warning"
           showIcon
           icon={<CircleAlert />}
         />
@@ -82,7 +98,7 @@ export default function Register() {
                           placeholder="Nhập tên"
                           name="name"
                           onChange={handleChange}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || !isConnected}
                           value={values.name}
                         />
                       </FormItem>
@@ -102,7 +118,7 @@ export default function Register() {
                         placeholder="Nhập mã sinh viên"
                         name="msv"
                         onChange={handleChange}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !isConnected}
                         value={values.msv}
                       />
                     </FormItem>
@@ -114,10 +130,11 @@ export default function Register() {
 
                     <div className="flex justify-end mt-6">
                       <Button
-                        className="w-full bg-black submit-button p-4 font-semibold h-9"
+                        className={`w-full ${!isConnected ? "bg-black" : "submit-button"} p-4 font-semibold h-9`}
                         type="primary"
                         htmlType="submit"
                         loading={isSubmitting}
+                        disabled={!isConnected}
                       >
                         <Fingerprint className="w-4 h-4" />
                         Bắt đầu đăng ký vân tay

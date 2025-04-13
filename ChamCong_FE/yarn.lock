@@ -56,10 +56,10 @@
   resolved "https://registry.yarnpkg.com/@ant-design/icons-svg/-/icons-svg-4.4.2.tgz#ed2be7fb4d82ac7e1d45a54a5b06d6cecf8be6f6"
   integrity sha512-vHbT+zJEVzllwP+CM+ul7reTEfBR0vgxFe7+lREAsAA7YGsYpboiq2sQNeQeRvh09GfQgs/GyFEvZpJ9cLXpXA==
 
-"@ant-design/icons@5.3.0":
-  version "5.3.0"
-  resolved "https://registry.yarnpkg.com/@ant-design/icons/-/icons-5.3.0.tgz#b4b57908eb4f4c31777424f10d341f6823a77d2b"
-  integrity sha512-69FgBsIkeCjw72ZU3fJpqjhmLCPrzKGEllbrAZK7MUdt1BrKsyG6A8YDCBPKea27UQ0tRXi33PcjR4tp/tEXMg==
+"@ant-design/icons@5.3.2":
+  version "5.3.2"
+  resolved "https://registry.yarnpkg.com/@ant-design/icons/-/icons-5.3.2.tgz#5c2333ddf700b24cf2f12649aba07584ee3aa898"
+  integrity sha512-+07UzOrzMJGl62K1nMiS2IpJu7uRIlO05fHVZidhkiE10szJofKrBymAEYhDMsKaRKfpbgbGgpAnb3T4uFzwVw==
   dependencies:
     "@ant-design/colors" "^7.0.0"
     "@ant-design/icons-svg" "^4.4.0"
@@ -1499,17 +1499,17 @@
   resolved "https://registry.yarnpkg.com/@standard-schema/utils/-/utils-0.3.0.tgz#3d5e608f16c2390c10528e98e59aef6bf73cae7b"
   integrity sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==
 
-"@tanstack/query-core@5.69.0":
-  version "5.69.0"
-  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.69.0.tgz#c434505987ade936dc53e6e27aa1406b0295516f"
-  integrity sha512-Kn410jq6vs1P8Nm+ZsRj9H+U3C0kjuEkYLxbiCyn3MDEiYor1j2DGVULqAz62SLZtUZ/e9Xt6xMXiJ3NJ65WyQ==
+"@tanstack/query-core@5.72.1":
+  version "5.72.1"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.72.1.tgz#c46e3e5eecf1628c478965c0540cae98838e24fe"
+  integrity sha512-nOu0EEkZuJ0BZnYgeaEfo44+psq1jBO7/zp3KudixD4dvgOVerrhAhDEKsWx2N7MxB59mjO4r0ddP/VqWGPK+Q==
 
-"@tanstack/react-query@^5.69.0":
-  version "5.69.0"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.69.0.tgz#8d58e800854cc11d0aa2c39569f53ae32ba442a9"
-  integrity sha512-Ift3IUNQqTcaFa1AiIQ7WCb/PPy8aexZdq9pZWLXhfLcLxH0+PZqJ2xFImxCpdDZrFRZhLJrh76geevS5xjRhA==
+"@tanstack/react-query@^5.72.1":
+  version "5.72.1"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.72.1.tgz#7c8bcb94bfc64e57377bfa3c5b2a764c4ae83229"
+  integrity sha512-4UEMyRx54xj144D2nDvDIMiXSG5BrqyCJrmyNoGbymNS+VWODcBDFrmRk9p2fe12UGZ4JtKPTNuW2Jg0aisUgQ==
   dependencies:
-    "@tanstack/query-core" "5.69.0"
+    "@tanstack/query-core" "5.72.1"
 
 "@types/babel__core@^7.20.5":
   version "7.20.5"
@@ -2138,7 +2138,7 @@ cli-truncate@^4.0.0:
     slice-ansi "^5.0.0"
     string-width "^7.0.0"
 
-clsx@^2.0.0:
+clsx@^2.0.0, clsx@^2.1.1:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/clsx/-/clsx-2.1.1.tgz#eed397c9fd8bd882bfb18deab7102049a2f32999"
   integrity sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==
@@ -4502,6 +4502,13 @@ react-style-singleton@^2.2.2, react-style-singleton@^2.2.3:
   dependencies:
     get-nonce "^1.0.0"
     tslib "^2.0.0"
+
+react-toastify@^11.0.5:
+  version "11.0.5"
+  resolved "https://registry.yarnpkg.com/react-toastify/-/react-toastify-11.0.5.tgz#ce4c42d10eeb433988ab2264d3e445c4e9d13313"
+  integrity sha512-EpqHBGvnSTtHYhCPLxML05NLY2ZX0JURbAdNYa6BUkk+amz4wbKBQvoKQAB0ardvSarUBuY4Q4s1sluAzZwkmA==
+  dependencies:
+    clsx "^2.1.1"
 
 react-transition-group@^4.4.5:
   version "4.4.5"

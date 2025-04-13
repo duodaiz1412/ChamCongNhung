@@ -46,6 +46,11 @@
       margin-right: 16px;
     }
   }
+
+  &.not-connected {
+    background-color: #FFF4E4;
+    border-color: #ffedc8;
+  }
 }
 
 .register-form {

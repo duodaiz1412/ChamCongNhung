@@ -1,311 +1,560 @@
 #include <ESP8266WiFi.h>
 #include <WebSocketsClient.h>
-#include <ESP8266HTTPClient.h>
+#include <ArduinoJson.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_Fingerprint.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
-const char *ssid = "Xom Tro Vui Ve";
-const char *password = "maiduy0507";
-const char *googleScriptURL = "https://script.google.com/macros/s/AKfycbz-Blo_AXMJUbi5KJ-ei2G0Xv1wFfckK-zp2iLgd6Q_jujLE_h3WGQ_nxBOYgKWDuatxg/exec";
-const char *WS_HOST = "192.168.1.6";
-const uint16_t WS_PORT = 3000;
-const char *WS_PATH = "/";
+// --- WiFi Credentials ---
+const char *ssid = "Xom Tro Vui Ve"; // Thay bằng tên WiFi của bạn
+const char *password = "maiduy0507"; // Thay bằng mật khẩu WiFi
 
+// --- Backend WebSocket Server ---
+const char *WS_HOST = "192.168.1.6"; // Thay bằng IP của máy chủ
+const uint16_t WS_PORT = 3000;       // Port của máy chủ
+
+// --- Device ID ---
+const char *DEVICE_ID = "ESP_CHAMCONG_01"; // ID duy nhất cho thiết bị
+
+// --- Hardware Pins ---
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 #define BUZZER_PIN D7
+#define FINGERPRINT_RX D5
+#define FINGERPRINT_TX D6
 
+// --- Objects ---
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-SoftwareSerial mySerial(D5, D6);
+SoftwareSerial mySerial(FINGERPRINT_RX, FINGERPRINT_TX);
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 WebSocketsClient webSocket;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 25200, 60000); // GMT+7
 
-int getFingerprintID()
-{
-  uint8_t p = finger.getImage();
-  if (p == FINGERPRINT_NOFINGER) return 0;
-  if (p != FINGERPRINT_OK) return -1;
+// --- Variables ---
+bool isWebSocketConnected = false;
+unsigned long lastReconnectAttempt = 0;
+const unsigned long reconnectInterval = 5000; // Thử kết nối lại sau 5 giây
+unsigned long lastHeartbeatSent = 0;
+const unsigned long heartbeatInterval = 10000; // Gửi heartbeat mỗi 10 giây
 
-  p = finger.image2Tz();
-  if (p != FINGERPRINT_OK) return -1;
+// --- Function Declarations ---
+void displayStatus(String line1, String line2 = "");
+void connectWiFi();
+void connectWebSocket();
+void webSocketEvent(WStype_t type, uint8_t *payload, size_t length);
+void sendWebSocketMessage(const char *type, const JsonDocument &payload);
+void sendHeartbeat();
+void handleEnrollCommand(int id);
+void handleDeleteCommand(int id);
+int getFingerprintID();
+void processFingerprintScan();
 
-  p = finger.fingerFastSearch();
-  if (p != FINGERPRINT_OK) return -1;
-
-  return finger.fingerID;
-}
-
-void displayStatus(String message)
-{
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println(message);
-  display.display();
-}
-
-void sendToGoogleSheets(int id)
-{
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    WiFiClientSecure client;
-    client.setInsecure();
-    HTTPClient http;
-
-    String jsonData = "{\"fingerID\":" + String(id) + "}";
-    Serial.println("Sending data to Google Sheets: " + jsonData);
-    http.begin(client, googleScriptURL);
-    http.addHeader("Content-Type", "application/json");
-    
-    int httpCode = http.POST(jsonData);
-    Serial.println("HTTP Response Code: " + String(httpCode));
-    if (httpCode > 0)
-    {
-      String response = http.getString();
+// --- Function Implementations ---
+void displayStatus(String line1, String line2) {
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println(line1);
+    if (line2 != "") {
+        display.setCursor(0, 10);
+        display.println(line2);
     }
-    http.end();
-  }
+    display.display();
 }
 
-void sendFingerprintData()
-{
-  finger.getTemplateCount();
-  uint16_t templateCount = finger.templateCount;
-  String jsonData = "{\"type\":\"fingerprint_data\",\"count\":" + String(templateCount) + ",\"ids\":[";
-
-  bool first = true;
-  for (int id = 1; id <= 127; id++)
-  {
-    if (finger.loadModel(id) == FINGERPRINT_OK && finger.fingerFastSearch() == FINGERPRINT_OK)
-    {
-      if (!first) jsonData += ",";
-      jsonData += String(id);
-      first = false;
+void connectWiFi() {
+    displayStatus("Connecting WiFi");
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+    Serial.print("Connecting to WiFi.");
+    unsigned long startAttemptTime = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 30000) {
+        delay(500);
+        Serial.print(".");
     }
-  }
-  jsonData += "]}";
-  
-  webSocket.sendTXT(jsonData);
+
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("\nFailed to connect to WiFi.");
+        displayStatus("WiFi Failed!");
+        delay(5000);
+        ESP.restart();
+    } else {
+        Serial.println("\nConnected to WiFi");
+        Serial.print("IP Address: ");
+        Serial.println(WiFi.localIP());
+        Serial.print("RSSI: ");
+        Serial.println(WiFi.RSSI()); // Log tín hiệu WiFi
+        displayStatus("WiFi Connected", WiFi.localIP().toString());
+        delay(1000);
+    }
 }
 
-void deleteFingerprint(int id)
-{
-  uint8_t p = finger.deleteModel(id);
-  if (p == FINGERPRINT_OK)
-  {
-    displayStatus("Xoa ID: " + String(id));
-    String jsonData = "{\"type\":\"delete_status\",\"id\":" + String(id) + ",\"status\":\"success\"}";
-    webSocket.sendTXT(jsonData);
-  }
-  else
-  {
-    displayStatus("Xoa that bai");
-    String jsonData = "{\"type\":\"delete_status\",\"id\":" + String(id) + ",\"status\":\"failed\"}";
-    webSocket.sendTXT(jsonData);
-  }
-  delay(2000);
+void connectWebSocket() {
+    lastReconnectAttempt = millis();
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("WiFi not connected. Cannot connect WebSocket.");
+        displayStatus("No WiFi for WS");
+        return;
+    }
+    String wsUrl = String("/") + "?deviceId=" + String(DEVICE_ID);
+    webSocket.begin(WS_HOST, WS_PORT, wsUrl.c_str());
+    webSocket.onEvent(webSocketEvent);
+    webSocket.setReconnectInterval(5000);
+    Serial.println("Attempting WebSocket connection...");
+    displayStatus("Connecting WS...");
 }
 
-void showWelcomeScreen()
-{
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("Moi dat van tay");
-  display.display();
-}
-
-void addFingerprint(int id)
-{
-  displayStatus("Dat ngon tay vao...");
-  uint8_t p = finger.getImage();
-  while (p != FINGERPRINT_OK) {
-    p = finger.getImage();
-    delay(100);
-  }
-
-  p = finger.image2Tz(1);
-  if (p != FINGERPRINT_OK) {
-    displayStatus("Them van tay that bai");
-    delay(2000);
-    return;
-  }
-
-  displayStatus("Bo ngon tay...");
-  delay(2000);
-
-  p = finger.getImage();
-  while (p != FINGERPRINT_NOFINGER) {
-    p = finger.getImage();
-    delay(100);
-  }
-
-  displayStatus("Dat ngon tay vao lai...");
-  p = finger.getImage();
-  while (p != FINGERPRINT_OK) {
-    p = finger.getImage();
-    delay(100);
-  }
-
-  p = finger.image2Tz(2);
-  if (p != FINGERPRINT_OK) {
-    displayStatus("Them van tay that bai");
-    delay(2000);
-    return;
-  }
-
-  p = finger.createModel();
-  if (p != FINGERPRINT_OK) {
-    displayStatus("Them van tay that bai");
-    delay(2000);
-    return;
-  }
-
-  p = finger.storeModel(id);
-  if (p == FINGERPRINT_OK) {
-    displayStatus("Da them ID: " + String(id));
-    String jsonData = "{\"type\":\"add_status\",\"id\":" + String(id) + ",\"status\":\"success\"}";
-    webSocket.sendTXT(jsonData);
-    delay(2000);
-    showWelcomeScreen();
-  } else {
-    displayStatus("Them van tay that bai");
-    String jsonData = "{\"type\":\"add_status\",\"id\":" + String(id) + ",\"status\":\"failed\"}";
-    webSocket.sendTXT(jsonData);
-    delay(2000);
-    showWelcomeScreen();
-  }
-}
-
-void webSocketEvent(WStype_t type, uint8_t * payload, size_t length)
-{
-  switch(type) {
+void webSocketEvent(WStype_t type, uint8_t *payload, size_t length) {
+    switch (type) {
     case WStype_DISCONNECTED:
-      Serial.println("[WebSocket] Disconnected!");
-      break;
+        isWebSocketConnected = false;
+        Serial.println("[WebSocket] Disconnected!");
+        displayStatus("WS Disconnected");
+        break;
     case WStype_CONNECTED:
-      Serial.println("[WebSocket] Connected to server!");
-      sendFingerprintData();
-      break;
+        isWebSocketConnected = true;
+        Serial.print("[WebSocket] Connected to url: ");
+        Serial.println((char *)payload);
+        displayStatus("WS Connected", "Server OK");
+        lastHeartbeatSent = millis(); // Khởi tạo thời gian heartbeat
+        break;
     case WStype_TEXT:
-      String message = String((char*)payload);
-      Serial.println("[WebSocket] Received: " + message);
-      
-      if (message.startsWith("delete:")) {
-        int idToDelete = message.substring(7).toInt();
-        if (idToDelete > 0) {
-          deleteFingerprint(idToDelete);
-          sendFingerprintData();
+        {
+            isWebSocketConnected = true;
+            Serial.printf("[WebSocket] Received: %s\n", payload);
+
+            StaticJsonDocument<200> doc;
+            DeserializationError error = deserializeJson(doc, payload, length);
+
+            if (error) {
+                Serial.print(F("deserializeJson() failed: "));
+                Serial.println(error.f_str());
+                StaticJsonDocument<100> errPayload;
+                errPayload["message"] = "Invalid JSON received";
+                errPayload["original"] = (const char*)payload;
+                sendWebSocketMessage("error_report", errPayload);
+                return;
+            }
+
+            const char *messageType = doc["type"];
+            if (!messageType) {
+                Serial.println("Received JSON without 'type' field.");
+                return;
+            }
+
+            if (strcmp(messageType, "heartbeat") == 0) {
+                Serial.println("[WebSocket] Received heartbeat from server");
+                StaticJsonDocument<50> heartbeatPayload;
+                heartbeatPayload["status"] = "alive";
+                sendWebSocketMessage("heartbeat", heartbeatPayload);
+            } else if (strcmp(messageType, "enroll") == 0) {
+                if (doc.containsKey("id") && doc["id"].is<int>()) {
+                    int idToEnroll = doc["id"];
+                    if (idToEnroll > 0) {
+                        handleEnrollCommand(idToEnroll);
+                    } else {
+                        Serial.println("Invalid ID (< 1) received for enroll command.");
+                        StaticJsonDocument<100> errPayload;
+                        errPayload["id"] = idToEnroll;
+                        errPayload["status"] = "error";
+                        errPayload["message"] = "Invalid ID (< 1) for enroll";
+                        sendWebSocketMessage("enroll_status", errPayload);
+                    }
+                } else {
+                    Serial.println("Missing or invalid 'id' field for enroll command.");
+                    StaticJsonDocument<100> errPayload;
+                    errPayload["status"] = "error";
+                    errPayload["message"] = "Missing/invalid 'id' for enroll";
+                    sendWebSocketMessage("enroll_status", errPayload);
+                }
+            } else if (strcmp(messageType, "delete") == 0) {
+                if (doc.containsKey("id") && doc["id"].is<int>()) {
+                    int idToDelete = doc["id"];
+                    if (idToDelete > 0) {
+                        handleDeleteCommand(idToDelete);
+                    } else {
+                        Serial.println("Invalid ID (< 1) received for delete command.");
+                        StaticJsonDocument<100> errPayload;
+                        errPayload["id"] = idToDelete;
+                        errPayload["status"] = "error";
+                        errPayload["message"] = "Invalid ID (< 1) for delete";
+                        sendWebSocketMessage("delete_status", errPayload);
+                    }
+                } else {
+                    Serial.println("Missing or invalid 'id' field for delete command.");
+                    StaticJsonDocument<100> errPayload;
+                    errPayload["status"] = "error";
+                    errPayload["message"] = "Missing/invalid 'id' for delete";
+                    sendWebSocketMessage("delete_status", errPayload);
+                }
+            } else {
+                Serial.print("Unknown command type received: ");
+                Serial.println(messageType);
+            }
+            break;
         }
-      }
-      else if (message.startsWith("add:")) {
-        int idToAdd = message.substring(4).toInt();
-        if (idToAdd > 0) {
-          addFingerprint(idToAdd);
-          sendFingerprintData();
+    case WStype_PING:
+        Serial.println("[WebSocket] Received ping");
+        break;
+    case WStype_PONG:
+        Serial.println("[WebSocket] Received pong");
+        break;
+    case WStype_ERROR:
+        Serial.printf("[WebSocket] Error: %s\n", payload);
+        break;
+    default:
+        break;
+    }
+}
+
+void sendWebSocketMessage(const char *type, const JsonDocument &payloadDoc) {
+    if (!isWebSocketConnected) {
+        Serial.println("WebSocket not connected, cannot send message.");
+        return;
+    }
+
+    StaticJsonDocument<256> messageDoc;
+    messageDoc["type"] = type;
+    messageDoc["payload"] = payloadDoc;
+
+    String output;
+    serializeJson(messageDoc, output);
+
+    Serial.print("Sending WS message: ");
+    Serial.println(output);
+    if (!webSocket.sendTXT(output)) {
+        Serial.println("WebSocket sendTXT failed!");
+    }
+}
+
+void sendHeartbeat() {
+    StaticJsonDocument<50> heartbeatPayload;
+    heartbeatPayload["status"] = "alive";
+    sendWebSocketMessage("heartbeat", heartbeatPayload);
+}
+
+void handleEnrollCommand(int id) {
+    Serial.printf("Starting enrollment process for ID: %d\n", id);
+    StaticJsonDocument<150> statusPayload;
+    statusPayload["id"] = id;
+
+    statusPayload["status"] = "ready";
+    statusPayload["step"] = 0;
+    statusPayload["message"] = "Ready to enroll";
+    sendWebSocketMessage("enroll_status", statusPayload);
+
+    displayStatus("Enroll ID: " + String(id), "Place finger");
+    statusPayload["status"] = "processing";
+    statusPayload["step"] = 1;
+    statusPayload["message"] = "Place finger (1st time)";
+    sendWebSocketMessage("enroll_status", statusPayload);
+
+    int p = -1;
+    unsigned long stepStartTime = millis();
+    while (p != FINGERPRINT_OK) {
+        p = finger.getImage();
+        if (!isWebSocketConnected || millis() - stepStartTime > 15000) {
+            displayStatus("WS Disconnected or Timeout", "Enroll Cancelled");
+            statusPayload["status"] = "error";
+            statusPayload["message"] = !isWebSocketConnected ? "WebSocket disconnected" : "Timeout waiting for finger (1st)";
+            sendWebSocketMessage("enroll_status", statusPayload);
+            delay(2000);
+            displayStatus("Ready");
+            return;
         }
-      }
-      break;
-  }
-}
-
-void displayFingerprint(int id)
-{
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("Van tay ID:");
-  display.println(id);
-  display.display();
-  
-  String jsonData = "{\"type\":\"scan\",\"id\":" + String(id) + "}";
-  webSocket.sendTXT(jsonData);
-}
-
-void setup()
-{
-  Serial.begin(115200);
-  mySerial.begin(57600);
-
-  pinMode(BUZZER_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, LOW);
-
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
-  {
-    Serial.println("OLED failed");
-    for (;;);
-  }
-
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("Dang ket noi WiFi...");
-  display.display();
-
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nConnected to WiFi");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("Da ket noi WiFi");
-  display.println(WiFi.localIP());
-  display.display();
-  delay(2000);
-
-  showWelcomeScreen();
-
-  finger.begin(57600);
-  if (finger.verifyPassword())
-  {
-    Serial.println("Found fingerprint sensor!");
-  }
-  else
-  {
-    Serial.println("Fingerprint sensor not found!");
-    while (1) delay(1);
-  }
-
-  // Initialize WebSocket
-  webSocket.begin(WS_HOST, WS_PORT, WS_PATH);
-  webSocket.onEvent(webSocketEvent);
-  webSocket.setReconnectInterval(2000);
-}
-
-void loop()
-{
-  webSocket.loop();
-
-  int fingerID = getFingerprintID();
-  if (fingerID > 0)
-  {
-    displayFingerprint(fingerID);
+        webSocket.loop();
+        delay(50);
+    }
+    p = finger.image2Tz(1);
+    if (p != FINGERPRINT_OK) {
+        displayStatus("Enroll Failed", "Image error");
+        statusPayload["status"] = "error";
+        statusPayload["message"] = "Failed to process 1st image";
+        sendWebSocketMessage("enroll_status", statusPayload);
+        delay(2000);
+        displayStatus("Ready");
+        return;
+    }
+    displayStatus("Enroll ID: " + String(id), "Remove finger");
+    statusPayload["step"] = 2;
+    statusPayload["message"] = "Remove finger";
+    sendWebSocketMessage("enroll_status", statusPayload);
     digitalWrite(BUZZER_PIN, HIGH);
-    delay(500);
+    delay(100);
     digitalWrite(BUZZER_PIN, LOW);
-    sendToGoogleSheets(fingerID);
-    delay(1500);
-    showWelcomeScreen();
-  }
-  else if (fingerID == -1)
-  {
-    displayStatus("Khong nhan ra van tay");
-    delay(2000);
-    showWelcomeScreen();
-  }
+    delay(1000);
 
-  delay(100);
+    p = 0;
+    stepStartTime = millis();
+    while (p != FINGERPRINT_NOFINGER) {
+        p = finger.getImage();
+        if (!isWebSocketConnected || millis() - stepStartTime > 5000) {
+            displayStatus("WS Disconnected or Timeout", "Enroll Cancelled");
+            statusPayload["status"] = "error";
+            statusPayload["message"] = !isWebSocketConnected ? "WebSocket disconnected" : "Timeout waiting for finger removal";
+            sendWebSocketMessage("enroll_status", statusPayload);
+            delay(2000);
+            displayStatus("Ready");
+            return;
+        }
+        webSocket.loop();
+        delay(50);
+    }
+    Serial.println("Finger removed.");
+
+    displayStatus("Enroll ID: " + String(id), "Place again");
+    statusPayload["step"] = 3;
+    statusPayload["message"] = "Place finger again (2nd time)";
+    sendWebSocketMessage("enroll_status", statusPayload);
+
+    p = -1;
+    stepStartTime = millis();
+    while (p != FINGERPRINT_OK) {
+        p = finger.getImage();
+        if (!isWebSocketConnected || millis() - stepStartTime > 15000) {
+            displayStatus("WS Disconnected or Timeout", "Enroll Cancelled");
+            statusPayload["status"] = "error";
+            statusPayload["message"] = !isWebSocketConnected ? "WebSocket disconnected" : "Timeout waiting for finger (2nd)";
+            sendWebSocketMessage("enroll_status", statusPayload);
+            delay(2000);
+            displayStatus("Ready");
+            return;
+        }
+        webSocket.loop();
+        delay(50);
+    }
+    p = finger.image2Tz(2);
+    if (p != FINGERPRINT_OK) {
+        displayStatus("Enroll Failed", "Image error 2");
+        statusPayload["status"] = "error";
+        statusPayload["message"] = "Failed to process 2nd image";
+        sendWebSocketMessage("enroll_status", statusPayload);
+        delay(2000);
+        displayStatus("Ready");
+        return;
+    }
+
+    displayStatus("Processing...");
+    Serial.println("Creating model...");
+    p = finger.createModel();
+    if (p != FINGERPRINT_OK) {
+        displayStatus("Enroll Failed", "Model creation err");
+        statusPayload["status"] = "error";
+        if (p == FINGERPRINT_PACKETRECIEVEERR) statusPayload["message"] = "Comm error creating model";
+        else if (p == FINGERPRINT_ENROLLMISMATCH) statusPayload["message"] = "Fingerprints did not match";
+        else statusPayload["message"] = "Error creating model";
+        sendWebSocketMessage("enroll_status", statusPayload);
+        delay(2000);
+        displayStatus("Ready");
+        return;
+    }
+
+    Serial.println("Model created.");
+    Serial.print("Storing model #");
+    Serial.println(id);
+    p = finger.storeModel(id);
+    if (p == FINGERPRINT_OK) {
+        displayStatus("Enroll Success!", "ID: " + String(id));
+        digitalWrite(BUZZER_PIN, HIGH);
+        delay(500);
+        digitalWrite(BUZZER_PIN, LOW);
+        statusPayload["status"] = "success";
+        statusPayload["message"] = "Enrollment successful";
+        sendWebSocketMessage("enroll_status", statusPayload);
+        delay(2000);
+    } else {
+        displayStatus("Enroll Failed", "Store error");
+        statusPayload["status"] = "error";
+        if (p == FINGERPRINT_PACKETRECIEVEERR) statusPayload["message"] = "Comm error storing model";
+        else if (p == FINGERPRINT_BADLOCATION) statusPayload["message"] = "Invalid storage location";
+        else if (p == FINGERPRINT_FLASHERR) statusPayload["message"] = "Flash storage error";
+        else statusPayload["message"] = "Error storing model";
+        sendWebSocketMessage("enroll_status", statusPayload);
+        delay(2000);
+    }
+    displayStatus("Ready");
+}
+
+void handleDeleteCommand(int id) {
+    Serial.printf("Deleting fingerprint template ID: %d\n", id);
+    displayStatus("Deleting ID: " + String(id));
+    StaticJsonDocument<100> statusPayload;
+    statusPayload["id"] = id;
+
+    uint8_t p = finger.deleteModel(id);
+
+    if (p == FINGERPRINT_OK) {
+        Serial.println("Template deleted");
+        displayStatus("Delete Success!", "ID: " + String(id));
+        digitalWrite(BUZZER_PIN, HIGH);
+        delay(100);
+        digitalWrite(BUZZER_PIN, LOW);
+        statusPayload["status"] = "success";
+        statusPayload["message"] = "Deletion successful";
+    } else {
+        Serial.print("Error deleting template: ");
+        displayStatus("Delete Failed", "ID: " + String(id));
+        statusPayload["status"] = "error";
+        if (p == FINGERPRINT_PACKETRECIEVEERR) {
+            Serial.println("Comm error");
+            statusPayload["message" ] = "Communication error";
+        } else if (p == FINGERPRINT_DELETEFAIL) {
+            Serial.println("Could not delete");
+            statusPayload["message"] = "Failed to delete from sensor";
+        } else {
+            Serial.println("Unknown error");
+            statusPayload["message"] = "Unknown sensor error during delete";
+        }
+    }
+    sendWebSocketMessage("delete_status", statusPayload);
+    delay(2000);
+    displayStatus("Ready");
+}
+
+int getFingerprintID() {
+    uint8_t p = finger.getImage();
+    if (p == FINGERPRINT_NOFINGER) return 0;
+    if (p != FINGERPRINT_OK) {
+        Serial.println("Error getting image");
+        return -1;
+    }
+
+    p = finger.image2Tz();
+    if (p != FINGERPRINT_OK) {
+        Serial.println("Error converting image");
+        return -1;
+    }
+
+    p = finger.fingerFastSearch();
+    if (p != FINGERPRINT_OK) return -2;
+
+    return finger.fingerID;
+}
+
+void processFingerprintScan() {
+    int fingerId = getFingerprintID();
+    if (fingerId == 0) return;
+
+    if (fingerId > 0) {
+        digitalWrite(BUZZER_PIN, HIGH);
+        delay(100);
+        digitalWrite(BUZZER_PIN, LOW);
+
+        StaticJsonDocument<150> payload;
+        payload["id"] = fingerId;
+        if (timeClient.isTimeSet()) {
+            payload["timestamp"] = timeClient.getFormattedTime();
+        } else {
+            Serial.println("NTP time not set, sending scan without timestamp.");
+        }
+
+        sendWebSocketMessage("scan_result", payload);
+        displayStatus("ID: " + String(fingerId), "Sent to server");
+        delay(2000);
+        displayStatus("Ready");
+    } else if (fingerId == -2) {
+        displayStatus("Unknown Finger");
+        digitalWrite(BUZZER_PIN, HIGH);
+        delay(50);
+        digitalWrite(BUZZER_PIN, LOW);
+        delay(50);
+        digitalWrite(BUZZER_PIN, HIGH);
+        delay(50);
+        digitalWrite(BUZZER_PIN, LOW);
+        delay(1500);
+        displayStatus("Ready");
+    } else if (fingerId == -1) {
+        displayStatus("Sensor Error", "Please try again");
+        delay(1500);
+        displayStatus("Ready");
+    }
+}
+
+void setup() {
+    Serial.begin(115200);
+    mySerial.begin(57600);
+
+    pinMode(BUZZER_PIN, OUTPUT);
+    digitalWrite(BUZZER_PIN, LOW);
+
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+        Serial.println(F("SSD1306 failed"));
+        for (;;);
+    }
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.println("Initializing...");
+    display.display();
+
+    finger.begin(57600);
+    delay(50);
+    if (finger.verifyPassword()) {
+        Serial.println("Found fingerprint sensor!");
+    } else {
+        Serial.println("Sensor not found!");
+        displayStatus("Sensor Error!");
+        while (1) {
+            delay(1);
+        }
+    }
+    finger.getTemplateCount();
+    Serial.print("Sensor templates: ");
+    Serial.println(finger.templateCount);
+
+    connectWiFi();
+    timeClient.begin();
+    connectWebSocket();
+    displayStatus("Ready");
+}
+
+void loop() {
+    webSocket.loop();
+
+    // Gửi heartbeat định kỳ
+    if (isWebSocketConnected && millis() - lastHeartbeatSent > heartbeatInterval) {
+        sendHeartbeat();
+        lastHeartbeatSent = millis();
+        Serial.println("Sent heartbeat to server");
+    }
+
+    // Cập nhật thời gian NTP
+    static unsigned long lastNTPUpdate = 0;
+    if (millis() - lastNTPUpdate > 300000 && WiFi.status() == WL_CONNECTED) {
+        timeClient.update();
+        lastNTPUpdate = millis();
+        Serial.println("NTP Time Updated: " + timeClient.getFormattedTime());
+    }
+
+    // Kiểm tra heap memory
+    static unsigned long lastHeapCheck = 0;
+    if (millis() - lastHeapCheck > 60000) {
+        Serial.print("Free Heap: ");
+        Serial.println(ESP.getFreeHeap());
+        lastHeapCheck = millis();
+    }
+
+    // Thử kết nối lại nếu mất kết nối
+    if (!isWebSocketConnected && millis() - lastReconnectAttempt > reconnectInterval) {
+        connectWebSocket();
+    }
+
+    // Cảnh báo nếu mất kết nối
+    if (!isWebSocketConnected) {
+        static unsigned long lastWarningTime = 0;
+        if (millis() - lastWarningTime > 10000) {
+            displayStatus("WS Disconnected", "Trying to connect");
+            lastWarningTime = millis();
+        }
+    }
+
+    // Xử lý quét vân tay
+    if (isWebSocketConnected) {
+        processFingerprintScan();
+    }
+
+    delay(50);
 }

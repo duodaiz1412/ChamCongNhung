@@ -1,6 +1,0 @@
-
-function getFingerprintData() {
-
-export default {
-
-}

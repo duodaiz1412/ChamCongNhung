@@ -8,8 +8,9 @@ import {
   ClockCircleOutlined,
 } from "@ant-design/icons";
 import {useDispatch, useSelector} from "react-redux";
-import {setDeviceStatus} from "@/redux/slices/deviceSlice";
 import {IRootState} from "@/redux/store";
+import {setDeviceStatus} from "@/redux/slices/deviceSlice";
+import "./index.scss";
 
 export default function DeviceStatus() {
   const dispatch = useDispatch();
@@ -18,36 +19,25 @@ export default function DeviceStatus() {
   );
 
   useEffect(() => {
-    const fetchDeviceStatus = async () => {
-      try {
-        const response = await fetch("http://localhost:3000/api/status");
-        const data = await response.json();
-        if (data.status === "success") {
-          dispatch(
-            setDeviceStatus({
-              isConnected: data.data.isConnected,
-              lastUpdate: data.data.lastUpdate,
-            }),
-          );
-        }
-      } catch (error) {
-        // console.error("Lỗi khi lấy trạng thái thiết bị:", error);
-        dispatch(
-          setDeviceStatus({
-            isConnected: true,
-            lastUpdate: new Date().toLocaleString(),
-          }),
-        );
-      }
+    const eventSource = new EventSource('http://localhost:3000/api/device-status');
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      dispatch(setDeviceStatus({
+        isConnected: data.isConnected,
+        lastUpdate: data.lastUpdate
+      }));
     };
 
-    fetchDeviceStatus();
-    const interval = setInterval(fetchDeviceStatus, 10000);
-    return () => clearInterval(interval);
+    eventSource.onerror = (error) => {
+      console.error('Lỗi kết nối SSE:', error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, [dispatch]);
-
-
-  
 
   return (
     <Card className="shadow-sm rounded-md">
@@ -78,7 +68,7 @@ export default function DeviceStatus() {
             <div className="flex items-center gap-1">
               <ClockCircleOutlined />
               <span className="text-normal font-normal text-sm text-neutral-500">
-                Cập nhật lúc: {lastUpdate}
+                Cập nhật lúc: {new Date(lastUpdate).toLocaleString()}
               </span>
             </div>
           )}

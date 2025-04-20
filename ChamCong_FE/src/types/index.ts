@@ -1,22 +1,37 @@
 // types/index.ts
-export interface IFingerprint {
-  id: string;
-  name: string;
-  timestamp: string;
-  date: string;
-  status: Status;
-}
-
-export enum Status {
-  IN = "IN",
-  OUT = "OUT",
-}
-
-
-export interface ColumnType{
-  id: string;
-  name?: string;
+export interface IAttendanceLog {
+  _id: string;
   timestamp?: string;
-  date?: string;
-  status?: Status;
+  eventType?: EventType;
+  user?: IUser;
+  loggedAt?: string;
+  updatedAt?: string;
+  __v?: number;
+}
+
+export enum EventType {
+  CHECK_IN = "CHECK_IN",
+  CHECK_OUT = "CHECK_OUT",
+  SCAN = "SCAN",
+}
+
+export interface ILogParam {
+  page?: number;
+  pageSize?: number;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export interface IUser {
+  userId: string;
+  name?: string;
+  msv?: string;
+}
+
+export interface IData {
+  data: IAttendanceLog[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalLogs: number;
 }

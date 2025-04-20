@@ -19,7 +19,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const theme : ThemeConfig = {
+const theme: ThemeConfig = {
   components: {
     Card: {
       bodyPadding: 16,

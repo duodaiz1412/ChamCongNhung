@@ -8,16 +8,16 @@ export default defineConfig({
   server: {
     open: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
+      "/api": {
+        target: "http://localhost:3000",
         changeOrigin: true,
         secure: false,
       },
-      '/ws': {
-        target: 'ws://localhost:3000',
-        ws: true
-      }
-    }
+      "/ws": {
+        target: "ws://localhost:3000",
+        ws: true,
+      },
+    },
   },
   resolve: {
     alias: {

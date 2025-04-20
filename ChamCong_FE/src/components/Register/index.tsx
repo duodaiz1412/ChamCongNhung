@@ -1,4 +1,4 @@
-import {Alert, Button, Form, Input} from "antd";
+import {Alert, Button, Form, Input, message} from "antd";
 import FormItem from "antd/es/form/FormItem";
 import {ErrorMessage, Formik} from "formik";
 import {useState} from "react";
@@ -7,33 +7,87 @@ import {CircleAlert, CircleCheckBig, Fingerprint} from "lucide-react";
 import * as Yup from "yup";
 import {useDispatch, useSelector} from "react-redux";
 import {IRootState} from "@/redux/store";
+import axios from "axios";
+
 interface IRegister {
   name: string;
   msv: string;
+  step: number;
 }
 
 export default function Register() {
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
   const dispatch = useDispatch();
-  const {isConnected} = useSelector(
-    (state: IRootState) => state.device,
-  );
+  const {isConnected} = useSelector((state: IRootState) => state.device);
   const initialValues: IRegister = {
     name: "",
     msv: "",
+    step: 0,
   };
   const validationSchema = Yup.object({
     name: Yup.string().required("Tên là bắt buộc"),
     msv: Yup.string().required("Mã sinh viên là bắt buộc"),
   });
-  const handleAddRegister = (
+
+  const handleAddRegister = async (
     values: IRegister,
     {setSubmitting}: {setSubmitting: (isSubmitting: boolean) => void},
   ) => {
-    console.log(values);
-    setSubmitting(false);
+    try {
+      const response = await axios.post(
+        "http://localhost:3000/api/enroll/request",
+        {
+          name: values.name,
+          msv: values.msv,
+          step: values.step,
+        },
+        {
+          params: {
+            deviceId: "ESP_CHAMCONG_01", // Thay đổi deviceId tùy theo thiết bị của bạn
+          },
+        },
+      );
+
+      if (response.data.status === "success") {
+        message.success("Đăng ký thành công!");
+        // Có thể thêm logic khác sau khi đăng ký thành công
+      }
+    } catch (error: any) {
+      console.error("Lỗi đăng ký:", error);
+      if (error.response) {
+        switch (error.response.status) {
+          case 400:
+            message.error(
+              "Thiếu thông tin bắt buộc hoặc thiết bị không kết nối",
+            );
+            break;
+          case 503:
+            message.error("Không còn vị trí trống để đăng ký vân tay");
+            break;
+          case 408:
+            message.error("Quá thời gian chờ đăng ký");
+            break;
+          case 502:
+            message.error("Không thể gửi lệnh đăng ký tới thiết bị");
+            break;
+          case 409:
+            message.error("Thông tin đã tồn tại trong hệ thống");
+            break;
+          default:
+            message.error(
+              "Đăng ký thất bại: " +
+                (error.response.data?.message || "Lỗi không xác định"),
+            );
+        }
+      } else {
+        message.error("Lỗi kết nối: " + error.message);
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
+
   return (
     <div className="border border-gray rounded-md p-6 flex flex-col gap-4">
       <div className="flex flex-col gap-1">

@@ -27,7 +27,15 @@ export function convertSongDuration(duration?: number) {
 export function convertDate(date?: string | Date) {
   if (!date) return "-";
   const momentDate = moment(date);
-  return `${momentDate.date()}, th${momentDate.month() + 1}, ${momentDate.year()}`;
+  const day = momentDate.date();
+  const month = momentDate.month() + 1;
+  return `${day < 10 ? "0" : ""}${day}/${month < 10 ? "0" : ""}${month}/${momentDate.year()}`;
+}
+
+export function convertDateToTime(date?: string | Date) {
+  if (!date) return "-";
+  const momentDate = moment.utc(date);
+  return momentDate.format("HH:mm");
 }
 
 export function convertNumber(num?: number): string {

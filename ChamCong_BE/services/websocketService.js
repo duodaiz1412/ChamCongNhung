@@ -10,7 +10,7 @@ class WebSocketService extends EventEmitter {
         this.pendingEnrollment = new Map();
         this.pendingDeletion = new Map();
         this.heartbeatInterval = 10000; // Gửi heartbeat mỗi 10 giây
-        this.heartbeatTimeout = 15000; // Timeout 15 giây nếu không nhận được phản hồi
+        this.heartbeatTimeout = 20000; // Timeout 15 giây nếu không nhận được phản hồi
     }
 
     initializeWebSocketServer(server) {
@@ -38,7 +38,6 @@ class WebSocketService extends EventEmitter {
                 try {
                     const messageString = message instanceof Buffer ? message.toString() : message;
                     data = JSON.parse(messageString);
-                    console.log(`Received WS message from ${deviceId}:`, data);
 
                     switch (data.type) {
                         case 'scan_result':
@@ -56,7 +55,6 @@ class WebSocketService extends EventEmitter {
                             if (client) {
                                 client.lastHeartbeatTime = Date.now();
                                 client.isAlive = true;
-                                console.log(`Heartbeat received from ${deviceId} at ${new Date(client.lastHeartbeatTime).toISOString()}`);
                             }
                             break;
                         default:
@@ -110,7 +108,6 @@ class WebSocketService extends EventEmitter {
                 client.isAlive = false; // Mong đợi phản hồi heartbeat
                 try {
                     const heartbeatMsg = JSON.stringify({ type: 'heartbeat' });
-                    console.log(`Sending heartbeat to ${deviceId} at ${new Date().toISOString()}: ${heartbeatMsg}`);
                     client.ws.send(heartbeatMsg);
                 } catch (error) {
                     console.error(`Error sending heartbeat to ${deviceId}:`, error);

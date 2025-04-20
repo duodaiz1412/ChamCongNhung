@@ -51,6 +51,7 @@
     "cmdk": "^1.1.1",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.5.2",
     "fontsource": "^0.0.1-security",
     "formik": "^2.4.6",

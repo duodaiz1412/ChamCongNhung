@@ -40,9 +40,7 @@ function Navbar() {
         }}
       >
         <div style={{display: "flex", alignItems: "center", gap: "16px"}}>
-          <div
-            className="flex items-center gap-1.5 text-base font-bold"
-          >
+          <div className="flex items-center gap-1.5 text-base font-bold">
             <span style={{color: "", fontSize: "24px"}}>Chấm công</span>
             <span className="text-blue-500 text-[26px] tracking-wider">
               PTIT

@@ -1,8 +1,6 @@
 import axios, {AxiosError, AxiosRequestConfig, AxiosResponse} from "axios";
 import {toast} from "react-toastify";
-import Config from "../config";
-import store, {persistor} from "../redux/store";
-import ListErrorMessage from "./ListErrorMessage";
+import Config from "@/config";
 
 export interface IDataError {
   errorCode: string;
@@ -48,77 +46,23 @@ interface IFetcherOptions {
   isFormData?: boolean;
 }
 
-export interface IRefreshToken {
-  accessToken: string;
-  refreshToken: string;
-}
-
-function logout(): void {
-  persistor
-    .purge()
-    .then(() => {
-      store.dispatch(logoutUser());
-      window.location.assign(Config.PATHNAME.HOME);
-    })
-    .catch(() => {
-      window.alert("Trình duyệt bị lỗi. Xóa Cookie trình duyệt và thử lại");
-    });
-}
-
 function handleLogout(content: string, isRequiredLogOut: boolean): void {
   if (!isRequiredLogOut) {
     toast.warn(content);
   } else {
-    logout();
+    window.location.assign(Config.PATHNAME.HOME);
     toast.error(content);
   }
 }
 
 function displayError(dataError: IDataError): void {
-  const {errorCode} = dataError;
-  let errorMessage;
-
-  const error = ListErrorMessage.find((dt) => dt.error_code === errorCode);
-  if (error) {
-    errorMessage = error.description;
-  } else {
-    errorMessage = dataError.errorMessage ?? "Somethings Wrong";
-  }
-
+  const errorMessage = dataError.errorMessage ?? "Có lỗi xảy ra";
   toast.error(errorMessage);
-}
-
-function handleRefreshToken() {
-  return new Promise<void>((resolve, reject) => {
-    fetcher<IRefreshToken>(
-      {
-        url: "/auth/refresh-token",
-        method: "post",
-        data: {refreshToken: store.getState().user?.refreshToken},
-      },
-      {displayError: false},
-    )
-      .then((res) => {
-        store.dispatch(loginUser(res));
-        resolve();
-      })
-      .catch(() => {
-        reject();
-      });
-  });
 }
 
 function getAuthorization(defaultOptions: IFetcherOptions) {
   if (defaultOptions.token) {
     return `Bearer ${defaultOptions.token}`;
-  }
-
-  if (defaultOptions.withToken) {
-    const state = store.getState();
-    const token = state.user?.accessToken;
-    if (token) {
-      return `Bearer ${token}`;
-    }
   }
 
   return undefined;
@@ -157,7 +101,7 @@ function returnResponseData<T>(
     if (response.data.data === undefined) {
       const dataEmpty: IDataError = {
         errorCode: "ERROR???",
-        errorMessage: "Data is empty",
+        errorMessage: "Dữ liệu trống",
       };
       if (defaultOptions.displayError) {
         displayError(dataEmpty);
@@ -181,7 +125,7 @@ function returnResponseDataWithMetaData<T>(
     if (response.data.data === undefined) {
       const dataEmpty: IDataError = {
         errorCode: "ERROR???",
-        errorMessage: "Data is empty",
+        errorMessage: "Dữ liệu trống",
       };
       if (defaultOptions.displayError) {
         displayError(dataEmpty);
@@ -207,36 +151,24 @@ async function processOtherCase<T, E>(
     | AxiosResponse<IResponseWithMetadataDTO<T>, IDataError>,
   resolve: (value: E) => void,
   reject: (reason?: IDataError) => void,
-  retryFetcher: (
-    config: AxiosRequestConfig,
-    options: IFetcherOptions,
-  ) => Promise<E>,
 ) {
   const dataError: IDataError = {
     errorCode: response.data.errorCode || "",
     errorMessage: response.data.message,
   };
-  if (dataError?.errorCode === "1006") {
-    try {
-      await handleRefreshToken();
-      const data = await retryFetcher(config, options);
-      resolve(data);
-    } catch {
-      handleLogout("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!", true);
-      reject(dataError);
-    }
-    return;
-  }
+
   if (dataError?.errorCode === "AUTH000220") {
-    handleLogout("Phiên đăng nhập hết hạn Vui lòng đăng nhập lại!", true);
+    handleLogout("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!", true);
     reject(dataError);
     return;
   }
+
   if (dataError?.errorCode === "JWT000201") {
     handleLogout("Vui lòng đăng nhập để sử dụng chức năng này!", false);
     reject(dataError);
     return;
   }
+
   if (defaultOptions.displayError) {
     displayError(dataError);
   }
@@ -249,10 +181,9 @@ function returnErrorData(
   reject: (reason?: IDataError) => void,
 ) {
   if (axios.isAxiosError(error)) {
-    // Axios error
     const somethingsWrong: IDataError = {
       errorCode: "ERROR???",
-      errorMessage: "Something is wrong",
+      errorMessage: "Có lỗi xảy ra",
     };
 
     let dataError: IDataError = somethingsWrong;
@@ -264,7 +195,7 @@ function returnErrorData(
     }
 
     if (dataError?.errorCode === "AUTH3001.NotAuthenticated") {
-      logout();
+      handleLogout("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!", true);
     } else if (defaultOptions.displayError) {
       displayError(dataError);
     }
@@ -272,11 +203,11 @@ function returnErrorData(
     return reject(dataError);
   }
 
-  toast.error("Something is wrong. Please try again");
+  toast.error("Có lỗi xảy ra. Vui lòng thử lại");
 
   return reject({
     errorCode: "NATIVE_ERROR",
-    errorMessage: "Somethings is wrong",
+    errorMessage: "Có lỗi xảy ra",
   });
 }
 
@@ -310,7 +241,6 @@ export async function fetcher<T>(
             newResponse,
             resolve,
             reject,
-            fetcher,
           );
         }
       })
@@ -345,7 +275,6 @@ export async function fetcherWithMetadata<T>(
             response,
             resolve,
             reject,
-            fetcherWithMetadata,
           );
         }
       })

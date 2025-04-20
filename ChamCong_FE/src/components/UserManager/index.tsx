@@ -1,5 +1,4 @@
-import {ColumnType} from "@/types";
-import {Status} from "@/types";
+import {ColumnType, EventType} from "@/types";
 import {TableColumnType} from "antd";
 import Table from "antd/es/table";
 import {Pen, Trash2} from "lucide-react";
@@ -10,7 +9,7 @@ interface AttendanceRecord {
   name: string;
   timestamp: string;
   date: string;
-  status: Status;
+  eventType: EventType;
 }
 
 export default function UserManager() {
@@ -20,28 +19,28 @@ export default function UserManager() {
       name: "Nguyễn Văn A",
       timestamp: "8:00 AM",
       date: "2022-01-01",
-      status: Status.IN,
+      eventType: EventType.CHECK_IN,
     },
     {
       id: "2",
       name: "Nguyễn Văn B",
       timestamp: "8:15 AM",
       date: "2022-01-01",
-      status: Status.IN,
+      eventType: EventType.CHECK_IN,
     },
     {
       id: "3",
       name: "Nguyễn Văn C",
       timestamp: "8:30 AM",
       date: "2022-01-01",
-      status: Status.OUT,
+      eventType: EventType.CHECK_OUT,
     },
     {
       id: "4",
       name: "Nguyễn Văn D",
       timestamp: "8:45 AM",
       date: "2022-01-01",
-      status: Status.IN,
+      eventType: EventType.CHECK_IN,
     },
   ]);
 

@@ -1,55 +1,59 @@
-import {ColumnType} from "@/types";
-import {Status} from "@/types";
+import ApiAttendanceLog from "@/api/ApiAttendanceLog";
+import QUERY_KEY from "@/api/QueryKey";
+import {EventType, IAttendanceLog, ILogParam} from "@/types";
+import {convertDate, convertDateToTime} from "@/utils/timeUtils";
+import {useQuery} from "@tanstack/react-query";
 import {TableColumnType} from "antd";
 import Table from "antd/es/table";
-import {useState} from "react";
+import {useEffect} from "react";
 
-interface AttendanceRecord {
+interface TableRecord {
   id: string;
+  stt: number;
   name: string;
-  timestamp: string;
-  date: string;
-  status: Status;
+  timestamp: string | undefined;
+  date: string | undefined;
+  eventType: EventType;
 }
 
 export default function DetailAttendance() {
-  const [data, setData] = useState<AttendanceRecord[]>([
-    {
-      id: "1",
-      name: "Nguyễn Văn A",
-      timestamp: "8:00 AM",
-      date: "2022-01-01",
-      status: Status.IN,
-    },
-    {
-      id: "2",
-      name: "Nguyễn Văn B",
-      timestamp: "8:15 AM",
-      date: "2022-01-01",
-      status: Status.IN,
-    },
-    {
-      id: "3",
-      name: "Nguyễn Văn C",
-      timestamp: "8:30 AM",
-      date: "2022-01-01",
-      status: Status.OUT,
-    },
-    {
-      id: "4",
-      name: "Nguyễn Văn D",
-      timestamp: "8:45 AM",
-      date: "2022-01-01",
-      status: Status.IN,
-    },
-  ]);
+  const params: ILogParam = {
+    page: 1,
+    pageSize: 10,
+  };
 
-  const columns: TableColumnType<ColumnType>[] = [
+  const {
+    data: logData,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: [QUERY_KEY.ATTENDANCE.DATA, params],
+    queryFn: () => ApiAttendanceLog.getLogs(params),
+  });
+
+  const totalLogs = logData?.totalLogs;
+
+  const data = logData?.data?.reverse()?.map((log: IAttendanceLog, index: number) => ({
+    stt: totalLogs ? totalLogs - index : 0,
+    id: log._id,
+    name: log.user?.name || "Unknown",
+    timestamp: log.timestamp,
+    date: log.timestamp,
+    eventType: log.eventType || EventType.SCAN,
+  }));
+
+  useEffect(() => {
+    if (data) {
+      refetch();
+    }
+  }, [data, refetch]);
+
+  const columns: TableColumnType<TableRecord>[] = [
     {
-      title: "ID",
-      dataIndex: "id",
-      key: "id",
-      width: 170,
+      title: "STT",
+      dataIndex: "stt",
+      key: "stt",
+      width: 150,
     },
     {
       title: "Tên",
@@ -60,26 +64,34 @@ export default function DetailAttendance() {
     {
       title: "Thời gian",
       dataIndex: "timestamp",
-      key: "timestamp",
+      key: "time",
       width: 250,
+      render: (value) => {
+        return convertDateToTime(value);
+      },
     },
     {
       title: "Ngày",
-      dataIndex: "date",
+      dataIndex: "timestamp",
       key: "date",
       width: 250,
+      render: (value: string) => {
+        return convertDate(value);
+      },
     },
     {
       title: "Trạng thái",
-      dataIndex: "status",
-      key: "status",
+      dataIndex: "eventType",
+      key: "eventType",
       width: 250,
-      render: (value: Status) => {
+      render: (value: EventType) => {
         return (
           <div
-            className={`rounded-full px-3 w-fit text-white font-semibold ${value === Status.IN ? "bg-[#22C55E]" : "bg-[#F97316]"}`}
+            className={`rounded-full px-3 w-fit text-white font-semibold ${
+              value === EventType.CHECK_IN ? "bg-[#22C55E]" : "bg-[#F97316]"
+            }`}
           >
-            {value === Status.IN ? "Vào" : "Ra"}
+            {value === EventType.CHECK_IN ? "Vào" : "Ra"}
           </div>
         );
       },
@@ -96,7 +108,12 @@ export default function DetailAttendance() {
           Danh sách chấm công của tất cả người dùng
         </div>
       </div>
-      <Table dataSource={data} columns={columns} rowKey="id" />
+      <Table
+        dataSource={data}
+        columns={columns}
+        rowKey="id"
+        loading={isLoading}
+      />
     </div>
   );
 }

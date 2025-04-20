@@ -22,4 +22,4 @@ const deviceSlice = createSlice({
 });
 
 export const {setDeviceStatus} = deviceSlice.actions;
-export default deviceSlice.reducer; 
+export default deviceSlice.reducer;

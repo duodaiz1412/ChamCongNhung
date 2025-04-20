@@ -444,10 +444,18 @@ void processFingerprintScan() {
 
         StaticJsonDocument<150> payload;
         payload["id"] = fingerId;
-        if (timeClient.isTimeSet()) {
-            payload["timestamp"] = timeClient.getFormattedTime();
+
+        // Validate and format NTP time
+        timeClient.update(); // Force an NTP update
+        if (timeClient.isTimeSet() && timeClient.getEpochTime() > 946684800) { // Post-2000 epoch
+            time_t epoch = timeClient.getEpochTime();
+            char isoTime[25];
+            strftime(isoTime, sizeof(isoTime), "%Y-%m-%dT%H:%M:%SZ", gmtime(&epoch));
+            payload["timestamp"] = isoTime;
+            Serial.print("Sending timestamp: ");
+            Serial.println(isoTime);
         } else {
-            Serial.println("NTP time not set, sending scan without timestamp.");
+            Serial.println("NTP time not valid, sending scan without timestamp.");
         }
 
         sendWebSocketMessage("scan_result", payload);
@@ -558,3 +566,124 @@ void loop() {
 
     delay(50);
 }
+
+
+
+// ** CODE TO CLEAR FINGERPRINT DATABASE **
+// #include <Adafruit_Fingerprint.h>
+// #include <Adafruit_GFX.h>
+// #include <Adafruit_SSD1306.h>
+
+// // --- Hardware Pins ---
+// #define SCREEN_WIDTH 128
+// #define SCREEN_HEIGHT 32
+// #define BUZZER_PIN D7
+// #define FINGERPRINT_RX D5
+// #define FINGERPRINT_TX D6
+
+// // --- Objects ---
+// Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+// SoftwareSerial mySerial(FINGERPRINT_RX, FINGERPRINT_TX);
+// Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+
+// // --- Function to Display Status ---
+// void displayStatus(String line1, String line2 = "") {
+//     display.clearDisplay();
+//     display.setCursor(0, 0);
+//     display.println(line1);
+//     if (line2 != "") {
+//         display.setCursor(0, 10);
+//         display.println(line2);
+//     }
+//     display.display();
+// }
+
+// void setup() {
+//     Serial.begin(115200);
+//     mySerial.begin(57600);
+
+//     // Initialize Buzzer
+//     pinMode(BUZZER_PIN, OUTPUT);
+//     digitalWrite(BUZZER_PIN, LOW);
+
+//     // Initialize OLED Display
+//     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+//         Serial.println(F("SSD1306 initialization failed"));
+//         for (;;); // Halt if display fails
+//     }
+//     display.clearDisplay();
+//     display.setTextColor(WHITE);
+//     display.setTextSize(1);
+//     display.setCursor(0, 0);
+//     display.println("Initializing...");
+//     display.display();
+
+//     // Initialize Fingerprint Sensor
+//     finger.begin(57600);
+//     delay(50);
+//     if (finger.verifyPassword()) {
+//         Serial.println("Found fingerprint sensor!");
+//         displayStatus("Sensor Found");
+//     } else {
+//         Serial.println("Fingerprint sensor not found!");
+//         displayStatus("Sensor Error!");
+//         while (1) { // Halt if sensor not found
+//             digitalWrite(BUZZER_PIN, HIGH);
+//             delay(100);
+//             digitalWrite(BUZZER_PIN, LOW);
+//             delay(100);
+//         }
+//     }
+
+//     // Get initial template count
+//     finger.getTemplateCount();
+//     Serial.print("Initial templates in sensor: ");
+//     Serial.println(finger.templateCount);
+//     displayStatus("Templates: " + String(finger.templateCount));
+
+//     // Clear all fingerprints
+//     Serial.println("Clearing all fingerprint templates...");
+//     displayStatus("Clearing Database...");
+//     uint8_t p = finger.emptyDatabase();
+
+//     if (p == FINGERPRINT_OK) {
+//         Serial.println("All fingerprint templates cleared successfully");
+//         displayStatus("Database Cleared!", "Success");
+//         digitalWrite(BUZZER_PIN, HIGH);
+//         delay(500);
+//         digitalWrite(BUZZER_PIN, LOW);
+//         delay(1000);
+//     } else {
+//         Serial.println("Error clearing database");
+//         displayStatus("Clear Failed", "Sensor Error");
+//         if (p == FINGERPRINT_PACKETRECIEVEERR) {
+//             Serial.println("Communication error");
+//             displayStatus("Clear Failed", "Comm Error");
+//         } else {
+//             Serial.println("Unknown error");
+//             displayStatus("Clear Failed", "Unknown Error");
+//         }
+//         digitalWrite(BUZZER_PIN, HIGH);
+//         delay(100);
+//         digitalWrite(BUZZER_PIN, LOW);
+//         delay(100);
+//         digitalWrite(BUZZER_PIN, HIGH);
+//         delay(100);
+//         digitalWrite(BUZZER_PIN, LOW);
+//     }
+
+//     // Verify template count after clearing
+//     finger.getTemplateCount();
+//     Serial.print("Templates after clear: ");
+//     Serial.println(finger.templateCount);
+//     displayStatus("Templates: " + String(finger.templateCount), "Done!");
+
+//     // Indicate completion
+//     Serial.println("Clear operation complete. You can now re-upload your original code.");
+//     displayStatus("Operation Done", "Re-upload Code");
+// }
+
+// void loop() {
+//     // Do nothing, program halts after clearing
+//     delay(1000);
+// }

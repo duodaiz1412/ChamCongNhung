@@ -1,5 +1,6 @@
 const AttendanceLog = require("../models/attendanceLogModel");
 const User = require("../models/userModel"); // Cần để populate
+const ExcelJS = require("exceljs");
 
 const getLogs = async (req, res) => {
   try {
@@ -76,6 +77,94 @@ const getLogs = async (req, res) => {
   }
 };
 
+const downloadExcel = async (req, res) => {
+  try {
+    const userIdFilter = req.query.userId;
+    const startDate = req.query.startDate ? new Date(req.query.startDate) : null;
+    const endDate = req.query.endDate ? new Date(req.query.endDate) : null;
+
+    const filter = {};
+    if (userIdFilter) {
+      const user = await User.findOne({ userId: userIdFilter }, "_id");
+      if (user) {
+        filter.user = user._id;
+      } else {
+        return res.status(404).json({
+          status: "error",
+          message: "User not found.",
+          statusCode: 404,
+        });
+      }
+    }
+    if (startDate || endDate) {
+      filter.timestamp = {};
+      if (startDate) filter.timestamp.$gte = startDate;
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        filter.timestamp.$lte = endOfDay;
+      }
+    }
+
+    const logs = await AttendanceLog.find(filter)
+      .populate("user", "name msv userId")
+      .sort({ timestamp: -1 })
+      .lean();
+
+    const totalLogs = await AttendanceLog.countDocuments(filter);
+
+    // Create Excel workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Attendance Logs");
+
+    // Define columns
+    worksheet.columns = [
+      { header: "STT", key: "stt", width: 10 },
+      { header: "Tên", key: "name", width: 20 },
+      { header: "Thời gian", key: "time", width: 15 },
+      { header: "Ngày", key: "date", width: 15 },
+      { header: "Trạng thái", key: "eventType", width: 15 },
+    ];
+
+    // Add rows
+    logs.forEach((log, index) => {
+      worksheet.addRow({
+        stt: totalLogs - index,
+        name: log.user?.name || "Unknown",
+        time: new Date(log.timestamp).toLocaleTimeString("vi-VN"),
+        date: new Date(log.timestamp).toLocaleDateString("vi-VN"),
+        eventType: log.eventType === "CHECK_IN" ? "Vào" : "Ra",
+      });
+    });
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+
+    // Set response headers
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=attendance_logs_${new Date().toISOString().split("T")[0]}.xlsx`
+    );
+
+    // Write to buffer and send
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.send(buffer);
+  } catch (error) {
+    console.error("Error generating Excel file:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to generate Excel file.",
+      statusCode: 500,
+    });
+  }
+};
+
 module.exports = {
   getLogs,
+  downloadExcel,
 };

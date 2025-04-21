@@ -11,6 +11,7 @@ router.get('/device-status', statusController.getDeviceStatusSSE);
 
 // Attendance Logs
 router.get('/logs', logController.getLogs);
+router.get('/export-excel', logController.downloadExcel);
 
 // User Management
 router.get('/users', userController.getUsers);

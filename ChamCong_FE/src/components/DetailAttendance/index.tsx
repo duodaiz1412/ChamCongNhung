@@ -2,8 +2,9 @@ import ApiAttendanceLog from "@/api/ApiAttendanceLog";
 import QUERY_KEY from "@/api/QueryKey";
 import {EventType, IAttendanceLog, ILogParam} from "@/types";
 import {convertDate, convertDateToTime} from "@/utils/timeUtils";
+import { DownloadOutlined } from "@ant-design/icons";
 import {useQuery} from "@tanstack/react-query";
-import {TableColumnType} from "antd";
+import {Button, message, TableColumnType} from "antd";
 import Table from "antd/es/table";
 import {useEffect} from "react";
 
@@ -98,11 +99,58 @@ export default function DetailAttendance() {
     },
   ];
 
+  // const handleDownload = async () => {
+  //   try {
+  //     const response = await ApiAttendanceLog.downloadExcel();
+  //     const url = window.URL.createObjectURL(new Blob([response]));
+  //     const link = document.createElement("a");
+  //     link.href = url;
+  //     link.setAttribute("download", `attendance_logs_${new Date().toISOString().split("T")[0]}.xlsx`);
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     link.remove();
+  //     window.URL.revokeObjectURL(url);
+  //   } catch (error) {
+  //     console.error("Error downloading Excel file:", error);
+  //   }
+  // };
+
+  const handleDownload = async () => {
+    try {
+      const response = await ApiAttendanceLog.downloadExcel();
+      console.log("Blob response:", response, "Type:", response.type, "Size:", response.size);
+      if (!(response instanceof Blob)) {
+        throw new Error("Response is not a Blob");
+      }
+      const url = window.URL.createObjectURL(response);
+      console.log("Created URL:", url);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `attendance_logs_${new Date().toISOString().split("T")[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      message.success("Tải xuống danh sách chấm công thành công!");
+    } catch (error) {
+      console.error("Error downloading Excel file:", error);
+      message.error("Có lỗi xảy ra khi tải xuống file Excel. Vui lòng thử lại.");
+    }
+  };
+
   return (
     <div className="border border-gray rounded-md p-6 flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <div className="flex items-center">
           <div className="text-2xl font-bold">Danh Sách Chấm Công</div>
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={handleDownload}
+            className="bg-blue-500 hover:bg-blue-600"
+          >
+            Tải xuống Excel
+          </Button>
         </div>
         <div className="text-sm text-gray-500">
           Danh sách chấm công của tất cả người dùng

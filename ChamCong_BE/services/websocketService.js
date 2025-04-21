@@ -9,6 +9,7 @@ class WebSocketService extends EventEmitter {
         this.clients = new Map(); // Map<deviceId, { ws, lastHeartbeatTime, isAlive }>
         this.pendingEnrollment = new Map();
         this.pendingDeletion = new Map();
+        this.enrollmentProgress = new Map(); // Thêm Map để lưu trữ thông tin tiến trình đăng ký
         this.heartbeatInterval = 10000; // Gửi heartbeat mỗi 10 giây
         this.heartbeatTimeout = 20000; // Timeout 15 giây nếu không nhận được phản hồi
     }
@@ -182,6 +183,16 @@ class WebSocketService extends EventEmitter {
         if (pending) {
             clearTimeout(pending.timeoutId);
             console.log(`Handling enrollment response for ID ${id}: ${status}`);
+
+            // Cập nhật thông tin tiến trình
+            const progress = this.enrollmentProgress.get(id);
+            if (progress) {
+                progress.status = status;
+                progress.step = step || progress.step;
+                progress.message = message || progress.message;
+                this.enrollmentProgress.set(id, progress);
+            }
+
             if (status === 'success') {
                 pending.resolve({ status, id });
                 this.pendingEnrollment.delete(id);
@@ -199,6 +210,14 @@ class WebSocketService extends EventEmitter {
         } else {
             console.warn(`Received enrollment response for unknown/completed ID: ${id}`);
         }
+    }
+
+    getEnrollmentProgress(id) {
+        return this.enrollmentProgress.get(id);
+    }
+
+    setEnrollmentProgress(id, progress) {
+        this.enrollmentProgress.set(id, progress);
     }
 
     requestDeletionOnDevice(deviceId, templateId, timeout = 10000) {

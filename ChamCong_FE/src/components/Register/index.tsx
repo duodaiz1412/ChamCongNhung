@@ -1,7 +1,7 @@
 import {Alert, Button, Form, Input, message} from "antd";
 import FormItem from "antd/es/form/FormItem";
 import {ErrorMessage, Formik} from "formik";
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import "./index.scss";
 import {CircleAlert, CircleCheckBig, Fingerprint} from "lucide-react";
 import * as Yup from "yup";
@@ -18,7 +18,7 @@ interface IRegister {
 export default function Register() {
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
-  const dispatch = useDispatch();
+  const [step, setStep] = useState(0);
   const {isConnected} = useSelector((state: IRootState) => state.device);
   const initialValues: IRegister = {
     name: "",
@@ -40,21 +40,21 @@ export default function Register() {
         {
           name: values.name,
           msv: values.msv,
-          step: values.step,
         },
         {
           params: {
-            deviceId: "ESP_CHAMCONG_01", // Thay đổi deviceId tùy theo thiết bị của bạn
+            deviceId: "ESP_CHAMCONG_01",
           },
         },
       );
 
       if (response.data.status === "success") {
-        message.success("Đăng ký thành công!");
-        // Có thể thêm logic khác sau khi đăng ký thành công
+        // Bắt đầu theo dõi tiến trình đăng ký
+        const templateId = response.data.data.id;
+        pollEnrollmentProgress(templateId);
       }
     } catch (error: any) {
-      console.error("Lỗi đăng ký:", error);
+      setError(true);
       if (error.response) {
         switch (error.response.status) {
           case 400:
@@ -85,6 +85,53 @@ export default function Register() {
       }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Hàm theo dõi tiến trình đăng ký
+  const pollEnrollmentProgress = async (templateId: number) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:3000/api/enroll/progress/${templateId}`
+      );
+
+      if (response.data.status === "success") {
+        const progress = response.data.data;
+        console.log(progress);
+        // Cập nhật step dựa trên trạng thái
+        if (progress.status === "processing") {
+          setStep(progress.step);
+          // Tiếp tục theo dõi nếu đang trong quá trình đăng ký
+          setTimeout(() => pollEnrollmentProgress(templateId), 1000);
+        } else if (progress.status === "success") {
+          setStep(4); // Hoàn thành
+          setSuccess(true);
+          message.success("Đăng ký vân tay thành công!");
+        } else if (progress.status === "error") {
+          setError(true);
+          message.error(progress.message || "Đăng ký vân tay thất bại");
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin tiến trình:", error);
+      setError(true);
+    }
+  };
+
+  const getStepMessage = () => {
+    switch (step) {
+      case 0:
+        return "Nhấn nút bắt đầu để bắt đầu đăng ký vân tay";
+      case 1:
+        return "Đặt ngón tay lần 1 lên cảm biến";
+      case 2:
+        return "Nhấc ngón tay ra khỏi cảm biến";
+      case 3:
+        return "Đặt ngón tay lần 2 lên cảm biến";
+      case 4:
+        return "Đăng ký vân tay thành công!";
+      default:
+        return "Đặt ngón tay lên cảm biến để đăng ký vân tay";
     }
   };
 
@@ -203,9 +250,7 @@ export default function Register() {
         <div className="register-image border border-gray rounded-md p-6 flex flex-col items-center justify-center">
           <div className="text-sm text-gray-500">
             <Fingerprint className="mx-auto h-16 w-16 mb-4 opacity-50" />
-            <div className="text-center">
-              Đặt ngón tay lên cảm biến để đăng ký vân tay
-            </div>
+            <div className="text-center">{getStepMessage()}</div>
           </div>
         </div>
       </div>

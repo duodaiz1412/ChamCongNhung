@@ -34,8 +34,7 @@ export default function DeviceStatus() {
       );
     };
 
-    eventSource.onerror = (error) => {
-      console.error("Lỗi kết nối SSE:", error);
+    eventSource.onerror = () => {
       eventSource.close();
     };
 

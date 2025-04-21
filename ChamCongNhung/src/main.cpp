@@ -118,6 +118,8 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length) {
         Serial.print("[WebSocket] Connected to url: ");
         Serial.println((char *)payload);
         displayStatus("WS Connected", "Server OK");
+        delay(2000); // Chờ 2 giây
+        displayStatus("Moi dat van tay"); // Chuyển sang trạng thái Ready
         lastHeartbeatSent = millis(); // Khởi tạo thời gian heartbeat
         break;
     case WStype_TEXT:
@@ -261,7 +263,7 @@ void handleEnrollCommand(int id) {
             statusPayload["message"] = !isWebSocketConnected ? "WebSocket disconnected" : "Timeout waiting for finger (1st)";
             sendWebSocketMessage("enroll_status", statusPayload);
             delay(2000);
-            displayStatus("Ready");
+            displayStatus("Moi dat van tay");
             return;
         }
         webSocket.loop();
@@ -274,9 +276,29 @@ void handleEnrollCommand(int id) {
         statusPayload["message"] = "Failed to process 1st image";
         sendWebSocketMessage("enroll_status", statusPayload);
         delay(2000);
-        displayStatus("Ready");
+        displayStatus("Moi dat van tay");
         return;
     }
+
+    // Kiểm tra xem vân tay đã tồn tại hay chưa
+    p = finger.fingerFastSearch();
+    if (p == FINGERPRINT_OK) {
+        displayStatus("Enroll Failed", "Van tay da dang ky");
+        statusPayload["status"] = "error";
+        statusPayload["message"] = "Fingerprint already registered with ID: " + String(finger.fingerID);
+        sendWebSocketMessage("enroll_status", statusPayload);
+        digitalWrite(BUZZER_PIN, HIGH);
+        delay(100);
+        digitalWrite(BUZZER_PIN, LOW);
+        delay(100);
+        digitalWrite(BUZZER_PIN, HIGH);
+        delay(100);
+        digitalWrite(BUZZER_PIN, LOW);
+        delay(2000);
+        displayStatus("Moi dat van tay");
+        return;
+    }
+
     displayStatus("Enroll ID: " + String(id), "Remove finger");
     statusPayload["step"] = 2;
     statusPayload["message"] = "Remove finger";
@@ -296,7 +318,7 @@ void handleEnrollCommand(int id) {
             statusPayload["message"] = !isWebSocketConnected ? "WebSocket disconnected" : "Timeout waiting for finger removal";
             sendWebSocketMessage("enroll_status", statusPayload);
             delay(2000);
-            displayStatus("Ready");
+            displayStatus("Moi dat van tay");
             return;
         }
         webSocket.loop();
@@ -319,7 +341,7 @@ void handleEnrollCommand(int id) {
             statusPayload["message"] = !isWebSocketConnected ? "WebSocket disconnected" : "Timeout waiting for finger (2nd)";
             sendWebSocketMessage("enroll_status", statusPayload);
             delay(2000);
-            displayStatus("Ready");
+            displayStatus("Moi dat van tay");
             return;
         }
         webSocket.loop();
@@ -332,7 +354,7 @@ void handleEnrollCommand(int id) {
         statusPayload["message"] = "Failed to process 2nd image";
         sendWebSocketMessage("enroll_status", statusPayload);
         delay(2000);
-        displayStatus("Ready");
+        displayStatus("Moi dat van tay");
         return;
     }
 
@@ -347,7 +369,7 @@ void handleEnrollCommand(int id) {
         else statusPayload["message"] = "Error creating model";
         sendWebSocketMessage("enroll_status", statusPayload);
         delay(2000);
-        displayStatus("Ready");
+        displayStatus("Moi dat van tay");
         return;
     }
 
@@ -374,7 +396,7 @@ void handleEnrollCommand(int id) {
         sendWebSocketMessage("enroll_status", statusPayload);
         delay(2000);
     }
-    displayStatus("Ready");
+    displayStatus("Moi dat van tay");
 }
 
 void handleDeleteCommand(int id) {
@@ -399,7 +421,7 @@ void handleDeleteCommand(int id) {
         statusPayload["status"] = "error";
         if (p == FINGERPRINT_PACKETRECIEVEERR) {
             Serial.println("Comm error");
-            statusPayload["message" ] = "Communication error";
+            statusPayload["message"] = "Communication error";
         } else if (p == FINGERPRINT_DELETEFAIL) {
             Serial.println("Could not delete");
             statusPayload["message"] = "Failed to delete from sensor";
@@ -410,7 +432,7 @@ void handleDeleteCommand(int id) {
     }
     sendWebSocketMessage("delete_status", statusPayload);
     delay(2000);
-    displayStatus("Ready");
+    displayStatus("Moi dat van tay");
 }
 
 int getFingerprintID() {
@@ -461,7 +483,7 @@ void processFingerprintScan() {
         sendWebSocketMessage("scan_result", payload);
         displayStatus("ID: " + String(fingerId), "Sent to server");
         delay(2000);
-        displayStatus("Ready");
+        displayStatus("Moi dat van tay");
     } else if (fingerId == -2) {
         displayStatus("Unknown Finger");
         digitalWrite(BUZZER_PIN, HIGH);
@@ -472,11 +494,11 @@ void processFingerprintScan() {
         delay(50);
         digitalWrite(BUZZER_PIN, LOW);
         delay(1500);
-        displayStatus("Ready");
+        displayStatus("Moi dat van tay");
     } else if (fingerId == -1) {
         displayStatus("Sensor Error", "Please try again");
         delay(1500);
-        displayStatus("Ready");
+        displayStatus("Moi dat van tay");
     }
 }
 
@@ -516,7 +538,7 @@ void setup() {
     connectWiFi();
     timeClient.begin();
     connectWebSocket();
-    displayStatus("Ready");
+    displayStatus("Moi dat van tay");
 }
 
 void loop() {
@@ -566,7 +588,6 @@ void loop() {
 
     delay(50);
 }
-
 
 
 // ** CODE TO CLEAR FINGERPRINT DATABASE **

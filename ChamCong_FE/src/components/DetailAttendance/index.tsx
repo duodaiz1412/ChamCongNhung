@@ -144,12 +144,11 @@ export default function DetailAttendance() {
         <div className="flex items-center">
           <div className="text-2xl font-bold">Danh Sách Chấm Công</div>
           <Button
-            type="primary"
             icon={<DownloadOutlined />}
             onClick={handleDownload}
-            className="bg-blue-500 hover:bg-blue-600"
+            className="bg-white border border-gray-300 rounded hover:bg-gray-100 text-black"
           >
-            Tải xuống Excel
+            
           </Button>
         </div>
         <div className="text-sm text-gray-500">

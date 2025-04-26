@@ -3,9 +3,9 @@ import QUERY_KEY from "@/api/QueryKey";
 import {EventType, IAttendanceLog, ILogParam} from "@/types";
 import {convertDate, convertDateToTime} from "@/utils/timeUtils";
 import {useQuery} from "@tanstack/react-query";
-import {TableColumnType, Input, Select, DatePicker, Space, Button} from "antd";
+import {TableColumnType, Input, Select, DatePicker, Space, Button, Pagination} from "antd";
 import Table from "antd/es/table";
-import {useEffect, useState} from "react";
+import {useEffect, useState, useMemo} from "react";
 import {Search, Filter} from "lucide-react";
 import dayjs from "dayjs";
 
@@ -44,17 +44,19 @@ export default function DetailAttendance() {
 
   const totalLogs = logData?.totalLogs;
 
-  // State để lưu dữ liệu hiển thị và bộ lọc
-  const [data, setData] = useState<TableRecord[]>([]);
+  // State để lưu dữ liệu hiển thị, bộ lọc và phân trang
+  const [allData, setAllData] = useState<TableRecord[]>([]);
   const [filters, setFilters] = useState<FilterValues>({
     name: "",
     eventType: "all",
     dateRange: null,
   });
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
-  // Cập nhật dữ liệu gốc khi fetch API thành công
+  // Cập nhật dữ liệu từ API
   useEffect(() => {
-    if (logData?.data) {
+    if (logData?.data && logData.data.length > 0) {
       const rawData = logData.data.reverse().map((log: IAttendanceLog, index: number) => ({
         stt: totalLogs ? totalLogs - index : 0,
         id: log._id,
@@ -63,28 +65,30 @@ export default function DetailAttendance() {
         date: log.timestamp,
         eventType: log.eventType || EventType.SCAN,
       }));
-      // Áp dụng bộ lọc trên rawData mới nhận được
-      applyFilters(rawData);
+      setAllData(rawData);
+    } else {
+      // Đặt mảng rỗng khi không có dữ liệu
+      setAllData([]);
     }
   }, [logData, totalLogs]);
 
-  // Tách hàm áp dụng bộ lọc để có thể tái sử dụng
-  const applyFilters = (rawData: TableRecord[]) => {
-    if (!rawData || !Array.isArray(rawData)) return;
+  // Lọc dữ liệu dựa trên các bộ lọc (sử dụng useMemo để tối ưu hiệu suất)
+  const filteredData = useMemo(() => {
+    if (!allData || !Array.isArray(allData)) return [];
 
     try {
-      let filteredData = [...rawData];
+      let filtered = [...allData];
 
       // Lọc theo tên
       if (filters.name) {
-        filteredData = filteredData.filter(item => 
+        filtered = filtered.filter(item => 
           item.name?.toLowerCase().includes(filters.name.toLowerCase())
         );
       }
 
       // Lọc theo trạng thái
       if (filters.eventType !== "all") {
-        filteredData = filteredData.filter(item => 
+        filtered = filtered.filter(item => 
           item.eventType === filters.eventType
         );
       }
@@ -94,7 +98,7 @@ export default function DetailAttendance() {
         const startDate = filters.dateRange[0].startOf('day');
         const endDate = filters.dateRange[1].endOf('day');
         
-        filteredData = filteredData.filter(item => {
+        filtered = filtered.filter(item => {
           if (!item.timestamp) return false;
           try {
             const itemDate = dayjs(item.timestamp);
@@ -106,33 +110,24 @@ export default function DetailAttendance() {
         });
       }
 
-      setData(filteredData);
+      return filtered;
     } catch (error) {
       console.error("Lỗi khi áp dụng bộ lọc:", error);
+      return [];
     }
-  };
+  }, [allData, filters]);
 
-  // Theo dõi thay đổi bộ lọc và áp dụng lại
+  // Tính toán dữ liệu hiển thị theo trang hiện tại
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, currentPage, pageSize]);
+
+  // Reset về trang đầu tiên khi thay đổi bộ lọc
   useEffect(() => {
-    if (logData?.data) {
-      const rawData = logData.data.reverse().map((log: IAttendanceLog, index: number) => ({
-        stt: totalLogs ? totalLogs - index : 0,
-        id: log._id,
-        name: log.user?.name || "Unknown",
-        timestamp: log.timestamp,
-        date: log.timestamp,
-        eventType: log.eventType || EventType.SCAN,
-      }));
-      applyFilters(rawData);
-    }
+    setCurrentPage(1);
   }, [filters]);
-
-  // Loại bỏ useEffect gọi refetch khi data thay đổi để tránh vòng lặp vô hạn
-  // useEffect(() => {
-  //   if (data) {
-  //     refetch();
-  //   }
-  // }, [data, refetch]);
 
   // Xử lý khi input tìm kiếm tên thay đổi
   const handleNameSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,6 +160,12 @@ export default function DetailAttendance() {
       eventType: "all",
       dateRange: null
     });
+  };
+
+  // Xử lý khi thay đổi trang
+  const handlePageChange = (page: number, pageSize?: number) => {
+    setCurrentPage(page);
+    if (pageSize) setPageSize(pageSize);
   };
 
   const columns: TableColumnType<TableRecord>[] = [
@@ -277,12 +278,34 @@ export default function DetailAttendance() {
         </div>
       </div>
 
+      {/* Hiển thị số lượng bản ghi đã lọc */}
+      <div className="text-sm text-gray-500 mb-2">
+        Tìm thấy {filteredData.length} bản ghi
+      </div>
+
+      {/* Bảng hiển thị dữ liệu phân trang */}
       <Table
-        dataSource={data}
+        dataSource={paginatedData}
         columns={columns}
         rowKey="id"
         loading={isLoading}
+        pagination={false}
+        locale={{ emptyText: "Không có dữ liệu" }}
       />
+
+      {/* Phân trang */}
+      {filteredData.length > 0 && (
+        <div className="flex justify-end mt-4">
+          <Pagination
+            current={currentPage}
+            pageSize={pageSize}
+            total={filteredData.length}
+            onChange={handlePageChange}
+            showSizeChanger={false}
+            showTotal={(total, range) => `Hiển thị ${range[0]}-${range[1]} trong ${total} mục`}
+          />
+        </div>
+      )}
     </div>
   );
 }

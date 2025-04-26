@@ -1,5 +1,5 @@
 import {EventType} from "@/types";
-import {Input, TableColumnType} from "antd";
+import {Input, TableColumnType, Pagination} from "antd";
 import Table from "antd/es/table";
 import {Pen, Trash2, Search} from "lucide-react";
 import {useState, useEffect} from "react";
@@ -42,12 +42,80 @@ export default function UserManager() {
       date: "2022-01-01",
       eventType: EventType.CHECK_IN,
     },
+    {
+      id: "5",
+      name: "Nguyễn Văn E",
+      timestamp: "9:00 AM",
+      date: "2022-01-01",
+      eventType: EventType.CHECK_OUT,
+    },
+    {
+      id: "6",
+      name: "Nguyễn Văn F",
+      timestamp: "9:15 AM",
+      date: "2022-01-01",
+      eventType: EventType.CHECK_IN,
+    },
+    {
+      id: "7",
+      name: "Nguyễn Văn G",
+      timestamp: "9:30 AM",
+      date: "2022-01-01",
+      eventType: EventType.CHECK_OUT,
+    },
+    {
+      id: "8",
+      name: "Nguyễn Văn H",
+      timestamp: "9:45 AM",
+      date: "2022-01-01",
+      eventType: EventType.CHECK_IN,
+    },
+    {
+      id: "9",
+      name: "Nguyễn Văn I",
+      timestamp: "10:00 AM",
+      date: "2022-01-01",
+      eventType: EventType.CHECK_OUT,
+    },
+    {
+      id: "10",
+      name: "Nguyễn Văn J",
+      timestamp: "10:15 AM",
+      date: "2022-01-01",
+      eventType: EventType.CHECK_IN,
+    },
+    // Thêm nhiều dữ liệu hơn nếu cần
+    
+    {
+      id: "11",
+      name: "Nguyễn Văn K",
+      timestamp: "10:30 AM",
+      date: "2022-01-01",
+      eventType: EventType.CHECK_OUT,
+    },
+    {
+      id: "12",
+      name: "Nguyễn Văn L",
+      timestamp: "10:45 AM",
+      date: "2022-01-01",
+      eventType: EventType.CHECK_IN,
+    },
+    {
+      id: "13",
+      name: "Nguyễn Văn M",
+      timestamp: "11:00 AM",
+      date: "2022-01-01",
+      eventType: EventType.CHECK_OUT,
+    },
   ]);
   
   // Thêm state để lưu trữ từ khóa tìm kiếm
   const [searchTerm, setSearchTerm] = useState<string>("");
   // Thêm state để lưu trữ dữ liệu đã lọc
   const [filteredData, setFilteredData] = useState<AttendanceRecord[]>(data);
+  // Thêm state cho phân trang
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Cập nhật dữ liệu đã lọc khi searchTerm hoặc data thay đổi
   useEffect(() => {
@@ -55,11 +123,26 @@ export default function UserManager() {
       record.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredData(filtered);
+    // Reset về trang đầu tiên khi thay đổi bộ lọc
+    setCurrentPage(1);
   }, [searchTerm, data]);
 
   // Xử lý khi input tìm kiếm thay đổi
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
+  };
+
+  // Xử lý khi thay đổi trang
+  const handlePageChange = (page: number, pageSize: number) => {
+    setCurrentPage(page);
+    setPageSize(pageSize);
+  };
+
+  // Tính toán dữ liệu hiển thị theo trang hiện tại
+  const getCurrentPageData = () => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredData.slice(startIndex, endIndex);
   };
 
   const columns: TableColumnType<AttendanceRecord>[] = [
@@ -127,8 +210,27 @@ export default function UserManager() {
         />
       </div>
       
-      {/* Sử dụng filteredData thay vì data */}
-      <Table dataSource={filteredData} columns={columns} rowKey="id" />
+      {/* Sử dụng pagination với Table */}
+      <Table 
+        dataSource={getCurrentPageData()} 
+        columns={columns} 
+        rowKey="id" 
+        pagination={false} // Tắt pagination mặc định của Table
+      />
+      
+      {/* Thêm component Pagination riêng */}
+      {filteredData.length > 0 && (
+        <div className="flex justify-end mt-4">
+          <Pagination
+            current={currentPage}
+            pageSize={pageSize}
+            total={filteredData.length}
+            onChange={handlePageChange}
+            showSizeChanger={false}
+            showTotal={(total, range) => `Hiển thị ${range[0]}-${range[1]} trong ${total} mục`}
+          />
+        </div>
+      )}
     </div>
   );
 }

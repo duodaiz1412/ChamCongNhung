@@ -1,10 +1,13 @@
 "use client";
 import {Layout, Menu, Space, Button} from "antd";
 import {BellOutlined, UserOutlined} from "@ant-design/icons";
+import {useAuth} from "../../../App";
 
 const {Header} = Layout;
 
 function Navbar() {
+  const {logout} = useAuth();
+
   const userMenuItems = [
     {
       key: "profile",
@@ -20,6 +23,9 @@ function Navbar() {
       key: "logout",
       icon: <UserOutlined />,
       label: "Đăng xuất",
+      onClick: () => {
+        logout();
+      },
     },
   ];
 

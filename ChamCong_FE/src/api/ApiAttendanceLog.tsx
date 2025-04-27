@@ -3,6 +3,7 @@ import {fetcher} from "./Fetcher";
 
 const path = {
   logs: "/logs",
+  exportExcel: "/export-excel"
 };
 
 function getLogs(params: ILogParam): Promise<IData> {
@@ -13,6 +14,17 @@ function getLogs(params: ILogParam): Promise<IData> {
   });
 }
 
+function downloadExcel(params: ILogParam = {}): Promise<Blob> {
+  return fetcher<Blob>({
+    url: path.exportExcel,
+    method: "GET",
+    params,
+  }, {
+    skipJsonParsing: true, // Pass skipJsonParsing in options
+  });
+}
+
 export default {
   getLogs,
+  downloadExcel,
 };

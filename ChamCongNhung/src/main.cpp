@@ -8,11 +8,11 @@
 #include <WiFiUdp.h>
 
 // --- WiFi Credentials ---
-const char *ssid = "Xom Tro Vui Ve"; // Thay bằng tên WiFi của bạn
-const char *password = "maiduy0507"; // Thay bằng mật khẩu WiFi
+const char *ssid = "217 Tran Phu"; // Thay bằng tên WiFi của bạn
+const char *password = "chothuephong"; // Thay bằng mật khẩu WiFi
 
 // --- Backend WebSocket Server ---
-const char *WS_HOST = "192.168.1.6"; // Thay bằng IP của máy chủ
+const char *WS_HOST = "192.168.1.181"; // Thay bằng IP của máy chủ
 const uint16_t WS_PORT = 3000;       // Port của máy chủ
 
 // --- Device ID ---

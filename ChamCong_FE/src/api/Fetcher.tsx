@@ -44,6 +44,7 @@ interface IFetcherOptions {
   displayError?: boolean;
   logRequest?: boolean;
   isFormData?: boolean;
+  skipJsonParsing?: boolean;
 }
 
 function handleLogout(content: string, isRequiredLogOut: boolean): void {
@@ -70,7 +71,7 @@ function getAuthorization(defaultOptions: IFetcherOptions) {
 
 function createApiClient(config: AxiosRequestConfig, options: IFetcherOptions) {
   const defaultOptions: IFetcherOptions = {
-    ...config,
+    // ...config,
     withToken: Config.NETWORK_CONFIG.USE_TOKEN,
     withMetadata: Config.NETWORK_CONFIG.WITH_METADATA,
     displayError: Config.NETWORK_CONFIG.DISPLAY_ERROR,
@@ -81,11 +82,14 @@ function createApiClient(config: AxiosRequestConfig, options: IFetcherOptions) {
     headers: {
       "Content-Type": options.isFormData
         ? "multipart/form-data"
+        : options.skipJsonParsing
+        ? undefined
         : "application/json",
       "Authorization": getAuthorization(defaultOptions),
     },
     baseURL: Config.NETWORK_CONFIG.API_BASE_URL,
     timeout: Config.NETWORK_CONFIG.TIMEOUT,
+    responseType: options.skipJsonParsing ? "blob" : "json",
   });
 
   return {apiClient, defaultOptions};
@@ -216,6 +220,22 @@ export async function fetcher<T>(
   options: IFetcherOptions = {},
 ): Promise<T> {
   const {apiClient, defaultOptions} = createApiClient(config, options);
+
+  if (options.skipJsonParsing) {
+    return new Promise<T>((resolve, reject) => {
+      apiClient
+        .request({
+          ...config,
+          responseType: "blob", // Ensure responseType is set
+        })
+        .then((response: AxiosResponse) => {
+          resolve(response.data as T);
+        })
+        .catch((error: Error | AxiosError) => {
+          returnErrorData(defaultOptions, error, reject);
+        });
+    });
+  }
 
   return new Promise<T>((resolve, reject) => {
     apiClient

@@ -11,6 +11,7 @@ router.get('/device-status', statusController.getDeviceStatusSSE);
 
 // Attendance Logs
 router.get('/logs', logController.getLogs);
+router.get('/export-excel', logController.downloadExcel);
 
 // User Management
 router.get('/users', userController.getUsers);
@@ -20,6 +21,5 @@ router.delete('/users/:userId', userController.initiateDeleteUser); // Xóa user
 
 // Fingerprint Enrollment
 router.post('/enroll/request', userController.requestEnrollment); // Yêu cầu bắt đầu đăng ký
-router.get('/enroll/progress/:id', userController.getEnrollmentProgress);
 
 module.exports = router;

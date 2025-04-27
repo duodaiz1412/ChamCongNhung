@@ -2,8 +2,9 @@ import ApiAttendanceLog from "@/api/ApiAttendanceLog";
 import QUERY_KEY from "@/api/QueryKey";
 import {EventType, IAttendanceLog, ILogParam} from "@/types";
 import {convertDate, convertDateToTime} from "@/utils/timeUtils";
+import {DownloadOutlined} from "@ant-design/icons";
 import {useQuery} from "@tanstack/react-query";
-import {TableColumnType} from "antd";
+import {Button, message, TableColumnType} from "antd";
 import Table from "antd/es/table";
 import {useEffect} from "react";
 
@@ -33,14 +34,16 @@ export default function DetailAttendance() {
 
   const totalLogs = logData?.totalLogs;
 
-  const data = logData?.data?.reverse()?.map((log: IAttendanceLog, index: number) => ({
-    stt: totalLogs ? totalLogs - index : 0,
-    id: log._id,
-    name: log.user?.name || "Unknown",
-    timestamp: log.timestamp,
-    date: log.timestamp,
-    eventType: log.eventType || EventType.SCAN,
-  }));
+  const data = logData?.data
+    ?.reverse()
+    ?.map((log: IAttendanceLog, index: number) => ({
+      stt: totalLogs ? totalLogs - index : 0,
+      id: log._id,
+      name: log.user?.name || "Unknown",
+      timestamp: log.timestamp,
+      date: log.timestamp,
+      eventType: log.eventType || EventType.SCAN,
+    }));
 
   useEffect(() => {
     if (data) {
@@ -98,11 +101,67 @@ export default function DetailAttendance() {
     },
   ];
 
+  // const handleDownload = async () => {
+  //   try {
+  //     const response = await ApiAttendanceLog.downloadExcel();
+  //     const url = window.URL.createObjectURL(new Blob([response]));
+  //     const link = document.createElement("a");
+  //     link.href = url;
+  //     link.setAttribute("download", `attendance_logs_${new Date().toISOString().split("T")[0]}.xlsx`);
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     link.remove();
+  //     window.URL.revokeObjectURL(url);
+  //   } catch (error) {
+  //     console.error("Error downloading Excel file:", error);
+  //   }
+  // };
+
+  const handleDownload = async () => {
+    try {
+      const response = await ApiAttendanceLog.downloadExcel();
+      console.log(
+        "Blob response:",
+        response,
+        "Type:",
+        response.type,
+        "Size:",
+        response.size,
+      );
+      if (!(response instanceof Blob)) {
+        throw new Error("Response is not a Blob");
+      }
+      const url = window.URL.createObjectURL(response);
+      console.log("Created URL:", url);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `attendance_logs_${new Date().toISOString().split("T")[0]}.xlsx`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      message.success("Tải xuống danh sách chấm công thành công!");
+    } catch (error) {
+      console.error("Error downloading Excel file:", error);
+      message.error(
+        "Có lỗi xảy ra khi tải xuống file Excel. Vui lòng thử lại.",
+      );
+    }
+  };
+
   return (
     <div className="border border-gray rounded-md p-6 flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <div className="flex items-center">
           <div className="text-2xl font-bold">Danh Sách Chấm Công</div>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleDownload}
+            className="bg-white border border-gray-300 rounded hover:bg-gray-100 text-black"
+          ></Button>
         </div>
         <div className="text-sm text-gray-500">
           Danh sách chấm công của tất cả người dùng

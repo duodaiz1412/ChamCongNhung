@@ -90,12 +90,16 @@ const getUsers = async (req, res) => {
     const totalPages = Math.ceil(totalUsers / limit);
 
     res.json({
-      status: "success",
-      data: users,
-      page: page,
-      limit: limit,
-      totalPages: totalPages,
-      totalUsers: totalUsers,
+      success: "success",
+      statusCode: 200,
+      message: "Logs fetched successfully",
+      data: {
+        data: users,
+        page,
+        pageSize: limit,
+        totalPages,
+        totalUsers,
+      },
     });
   } catch (error) {
     console.error("Error fetching users:", error);

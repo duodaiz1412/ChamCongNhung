@@ -26,6 +26,9 @@ export interface IUser {
   userId: string;
   name?: string;
   msv?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  isActive?: boolean;
 }
 
 export interface IData {
@@ -34,4 +37,12 @@ export interface IData {
   pageSize: number;
   totalPages: number;
   totalLogs: number;
+}
+
+export interface IUserResponse {
+  data: IUser[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalUsers: number;
 }

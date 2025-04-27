@@ -1,4 +1,4 @@
-import {ILogParam, IUser} from "@/types";
+import {ILogParam, IUserResponse} from "@/types";
 import {fetcher} from "./Fetcher";
 
 const path = {
@@ -6,7 +6,7 @@ const path = {
   exportExcel: "/export-excel",
 };
 
-function getUsers(params: ILogParam): Promise<IUser> {
+function getUsers(params: ILogParam): Promise<IUserResponse> {
   return fetcher({
     url: path.users,
     method: "GET",

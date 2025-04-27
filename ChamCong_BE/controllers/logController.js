@@ -56,7 +56,7 @@ const getLogs = async (req, res) => {
     const totalPages = Math.ceil(totalLogs / pageSize);
 
     res.json({
-      success: true,
+      success: "success",
       statusCode: 200,
       message: "Logs fetched successfully",
       data: {

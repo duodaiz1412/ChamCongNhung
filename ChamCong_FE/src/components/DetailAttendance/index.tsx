@@ -101,38 +101,13 @@ export default function DetailAttendance() {
     },
   ];
 
-  // const handleDownload = async () => {
-  //   try {
-  //     const response = await ApiAttendanceLog.downloadExcel();
-  //     const url = window.URL.createObjectURL(new Blob([response]));
-  //     const link = document.createElement("a");
-  //     link.href = url;
-  //     link.setAttribute("download", `attendance_logs_${new Date().toISOString().split("T")[0]}.xlsx`);
-  //     document.body.appendChild(link);
-  //     link.click();
-  //     link.remove();
-  //     window.URL.revokeObjectURL(url);
-  //   } catch (error) {
-  //     console.error("Error downloading Excel file:", error);
-  //   }
-  // };
-
   const handleDownload = async () => {
     try {
       const response = await ApiAttendanceLog.downloadExcel();
-      console.log(
-        "Blob response:",
-        response,
-        "Type:",
-        response.type,
-        "Size:",
-        response.size,
-      );
       if (!(response instanceof Blob)) {
         throw new Error("Response is not a Blob");
       }
       const url = window.URL.createObjectURL(response);
-      console.log("Created URL:", url);
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute(
@@ -145,9 +120,8 @@ export default function DetailAttendance() {
       window.URL.revokeObjectURL(url);
       message.success("Tải xuống danh sách chấm công thành công!");
     } catch (error) {
-      console.error("Error downloading Excel file:", error);
       message.error(
-        "Có lỗi xảy ra khi tải xuống file Excel. Vui lòng thử lại.",
+        `Có lỗi: ${error} xảy ra khi tải xuống file Excel. Vui lòng thử lại.`,
       );
     }
   };

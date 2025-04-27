@@ -1,54 +1,49 @@
-import {ColumnType, EventType} from "@/types";
+import ApiUser from "@/api/ApiUser";
+import QUERY_KEY from "@/api/QueryKey";
+import {IUser} from "@/types";
+import {convertDate} from "@/utils/timeUtils";
+import {useQuery} from "@tanstack/react-query";
 import {TableColumnType} from "antd";
 import Table from "antd/es/table";
 import {Pen, Trash2} from "lucide-react";
 import {useState} from "react";
 
-interface AttendanceRecord {
-  id: string;
+interface TableRecord {
+  stt: number;
   name: string;
-  timestamp: string;
-  date: string;
-  eventType: EventType;
+  msv: string;
+  createdAt: string | undefined;
+  updatedAt: string | undefined;
+  isActive: boolean;
+  userId: string;
 }
 
 export default function UserManager() {
-  const [data, setData] = useState<AttendanceRecord[]>([
-    {
-      id: "1",
-      name: "Nguyễn Văn A",
-      timestamp: "8:00 AM",
-      date: "2022-01-01",
-      eventType: EventType.CHECK_IN,
-    },
-    {
-      id: "2",
-      name: "Nguyễn Văn B",
-      timestamp: "8:15 AM",
-      date: "2022-01-01",
-      eventType: EventType.CHECK_IN,
-    },
-    {
-      id: "3",
-      name: "Nguyễn Văn C",
-      timestamp: "8:30 AM",
-      date: "2022-01-01",
-      eventType: EventType.CHECK_OUT,
-    },
-    {
-      id: "4",
-      name: "Nguyễn Văn D",
-      timestamp: "8:45 AM",
-      date: "2022-01-01",
-      eventType: EventType.CHECK_IN,
-    },
-  ]);
+  const [params] = useState({
+    page: 1,
+    pageSize: 100,
+  });
+  const {data: userData, isLoading} = useQuery({
+    queryKey: [QUERY_KEY.USER.DATA, params],
+    queryFn: () => ApiUser.getUsers(params),
+  });
 
-  const columns: TableColumnType<ColumnType>[] = [
+  const data =
+    userData?.data?.map((user: IUser, index: number) => ({
+      stt: index + 1,
+      name: user.name || "",
+      msv: user.msv || "",
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      isActive: user.isActive,
+      userId: user.userId,
+    })) || [];
+
+  const columns: TableColumnType<TableRecord>[] = [
     {
-      title: "ID",
-      dataIndex: "id",
-      key: "id",
+      title: "STT",
+      dataIndex: "stt",
+      key: "stt",
       width: 170,
     },
     {
@@ -58,23 +53,43 @@ export default function UserManager() {
       width: 250,
     },
     {
-      title: "Thời gian",
-      dataIndex: "timestamp",
-      key: "timestamp",
+      title: "MSV",
+      dataIndex: "msv",
+      key: "msv",
       width: 250,
     },
     {
-      title: "Ngày",
-      dataIndex: "date",
-      key: "date",
+      title: "Ngày tạo",
+      dataIndex: "createdAt",
+      key: "createdAt",
       width: 250,
+      render: (value: string) => {
+        return convertDate(value);
+      },
+    },
+    {
+      title: "Ngày cập nhật",
+      dataIndex: "updatedAt",
+      key: "updatedAt",
+      width: 250,
+      render: (value: string) => {
+        return convertDate(value);
+      },
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "isActive",
+      key: "isActive",
+      width: 250,
+      render: (isActive: boolean) =>
+        isActive ? "Đang hoạt động" : "Không hoạt động",
     },
     {
       title: "Hành động",
       dataIndex: "action",
       key: "action",
       width: 250,
-      render: (params) => {
+      render: () => {
         return (
           <div className="flex gap-7">
             <Pen size={20} className="cursor-pointer" />
@@ -95,7 +110,12 @@ export default function UserManager() {
           Xem và quản lý tất cả người dùng trong hệ thống
         </div>
       </div>
-      <Table dataSource={data} columns={columns} rowKey="id" />
+      <Table
+        dataSource={data}
+        columns={columns as any}
+        loading={isLoading}
+        rowKey="userId"
+      />
     </div>
   );
 }

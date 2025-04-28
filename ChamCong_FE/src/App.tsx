@@ -2,7 +2,6 @@ import {BrowserRouter, Outlet, Route, Routes} from "react-router";
 import HomeLayout from "./layout/HomeLayout";
 import Home from "./pages/Home";
 import About from "./pages/About";
-import Attendance from "./pages/Attendance";
 import {ToastContainer, toast} from "react-toastify";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import "react-toastify/dist/ReactToastify.css";
@@ -167,7 +166,6 @@ function App() {
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
-            <Route path="/attendance" element={<Attendance />} />
           </Route>
         </Routes>
       </BrowserRouter>

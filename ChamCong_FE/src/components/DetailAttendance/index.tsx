@@ -41,6 +41,7 @@ export default function DetailAttendance() {
   } = useQuery({
     queryKey: [QUERY_KEY.ATTENDANCE.DATA, params],
     queryFn: () => ApiAttendanceLog.getLogs(params),
+    refetchInterval: 5000,
   });
 
   const totalLogs = logData?.totalLogs;
@@ -72,6 +73,28 @@ export default function DetailAttendance() {
       refetch();
     }
   }, [data, refetch]);
+
+  // Thêm useEffect để lắng nghe SSE
+  useEffect(() => {
+    const eventSource = new EventSource('http://localhost:3000/api/device-status');
+    
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      // Nếu có thay đổi trạng thái thiết bị, refetch dữ liệu
+      if (data.isConnected) {
+        refetch();
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE Error:', error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [refetch]);
 
   // Lọc dữ liệu dựa trên các bộ lọc
   const filteredData = useMemo(() => {

@@ -3,7 +3,8 @@ import {fetcher} from "./Fetcher";
 
 const path = {
   logs: "/logs",
-  exportExcel: "/export-excel"
+  exportExcel: "/export-excel",
+  todayLogs: "/logs/today"
 };
 
 function getLogs(params: ILogParam): Promise<IData> {
@@ -11,6 +12,13 @@ function getLogs(params: ILogParam): Promise<IData> {
     url: path.logs,
     method: "GET",
     params,
+  });
+}
+
+function getTodayLogs(): Promise<IData> {
+  return fetcher({
+    url: path.todayLogs,
+    method: "GET",
   });
 }
 
@@ -27,4 +35,5 @@ function downloadExcel(params: ILogParam = {}): Promise<Blob> {
 export default {
   getLogs,
   downloadExcel,
+  getTodayLogs,
 };

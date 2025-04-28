@@ -1,4 +1,4 @@
-import {ILogParam, IUserResponse} from "@/types";
+import {ILogParam, IUser, IUserResponse} from "@/types";
 import {fetcher} from "./Fetcher";
 
 const path = {
@@ -11,6 +11,21 @@ function getUsers(params: ILogParam): Promise<IUserResponse> {
     url: path.users,
     method: "GET",
     params,
+  });
+}
+
+function deleteUser(userId: string): Promise<void> {
+  return fetcher({
+    url: `${path.users}/${userId}`,
+    method: "DELETE",
+  });
+}
+
+function updateUser(userId: string, userData: Partial<IUser>): Promise<IUser> {
+  return fetcher({
+    url: `${path.users}/${userId}`,
+    method: "PUT",
+    data: userData,
   });
 }
 
@@ -30,4 +45,6 @@ function downloadExcel(params: ILogParam = {}): Promise<Blob> {
 export default {
   getUsers,
   downloadExcel,
+  deleteUser,
+  updateUser
 };

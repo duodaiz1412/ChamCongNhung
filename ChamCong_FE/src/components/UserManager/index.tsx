@@ -2,12 +2,13 @@ import ApiUser from "@/api/ApiUser";
 import QUERY_KEY from "@/api/QueryKey";
 import {IUser} from "@/types";
 import {convertDate} from "@/utils/timeUtils";
-import {DownloadOutlined} from "@ant-design/icons";
 import {useQuery} from "@tanstack/react-query";
-import {Input, TableColumnType, Pagination, Button} from "antd";
+import {Input, TableColumnType, Pagination} from "antd";
 import Table from "antd/es/table";
 import {Pen, Trash2, Search} from "lucide-react";
 import {useState, useEffect} from "react";
+import ModalDelete from "../ModalDelete";
+import ModalEdit from "../ModalEdit";
 
 interface TableRecord {
   stt: number;
@@ -20,11 +21,25 @@ interface TableRecord {
 }
 
 export default function UserManager() {
+  const [selectedUser, setSelectedUser] = useState<IUser | undefined>(undefined);
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  
+  const handleOpenDeleteModal = (user: IUser) => {
+    setShowDeleteModal(true);
+    setSelectedUser(user);
+  };
+  
+  const handleOpenEditModal = (user: IUser) => {
+    setShowEditModal(true);
+    setSelectedUser(user);
+  };
+  
   const [params] = useState({
     page: 1,
     pageSize: 100,
   });
-  const {data: userData, isLoading} = useQuery({
+  const {data: userData, isLoading, refetch} = useQuery({
     queryKey: [QUERY_KEY.USER.DATA, params],
     queryFn: () => ApiUser.getUsers(params),
   });
@@ -73,37 +88,12 @@ export default function UserManager() {
     setPageSize(size);
   };
 
-  const handleDownload = async () => {
-    try {
-      const response = await ApiUser.downloadExcel();
-      if (!(response instanceof Blob)) {
-        throw new Error("Response is not a Blob");
-      }
-      const url = window.URL.createObjectURL(response);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `attendance_logs_${new Date().toISOString().split("T")[0]}.xlsx`,
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      message.success("Tải xuống danh sách chấm công thành công!");
-    } catch (error) {
-      message.error(
-        `Có lỗi: ${error} xảy ra khi tải xuống file Excel. Vui lòng thử lại.`,
-      );
-    }
-  };
-
   // Tính toán dữ liệu hiển thị theo trang hiện tại
-  const getCurrentPageData = () => {
+  const paginatedData = (() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     return filteredData.slice(startIndex, endIndex);
-  };
+  })();
 
   const columns: TableColumnType<TableRecord>[] = [
     {
@@ -155,16 +145,39 @@ export default function UserManager() {
       dataIndex: "action",
       key: "action",
       width: 250,
-      render: () => {
+      render: (_, record) => {
         return (
           <div className="flex gap-7">
-            <Pen size={20} className="cursor-pointer" />
-            <Trash2 size={20} className="cursor-pointer" />
+            <Pen 
+              size={20} 
+              className="cursor-pointer" 
+              onClick={() => handleOpenEditModal({
+                userId: record.userId,
+                name: record.name,
+                msv: record.msv,
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+                isActive: record.isActive
+              })}
+            />
+            <Trash2 
+              size={20} 
+              className="cursor-pointer" 
+              onClick={() => handleOpenDeleteModal({
+                userId: record.userId,
+                name: record.name,
+                msv: record.msv,
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+                isActive: record.isActive
+              })}
+            />
           </div>
         );
       },
     },
   ];
+
 
   return (
     <div className="border border-gray rounded-md p-6 flex flex-col gap-5">
@@ -189,7 +202,7 @@ export default function UserManager() {
       </div>
 
       <Table
-        dataSource={getCurrentPageData()}
+        dataSource={paginatedData}
         columns={columns as any}
         loading={isLoading}
         rowKey="userId"
@@ -211,6 +224,22 @@ export default function UserManager() {
           />
         </div>
       )}
+      <ModalDelete
+        data={selectedUser}
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={() => {
+          refetch();
+        }}
+      />
+      <ModalEdit
+        data={selectedUser}
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onConfirm={() => {
+          refetch();
+        }}
+      />
     </div>
   );
 }

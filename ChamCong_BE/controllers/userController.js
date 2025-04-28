@@ -128,12 +128,10 @@ const addUser = async (req, res) => {
   } catch (error) {
     console.error("Error adding user:", error);
     if (error.code === 11000) {
-      return res
-        .status(409)
-        .json({
-          status: "error",
-          message: `Duplicate key error. Field: ${Object.keys(error.keyValue)}`,
-        });
+      return res.status(409).json({
+        status: "error",
+        message: `Duplicate key error. Field: ${Object.keys(error.keyValue)}`,
+      });
     }
     if (error.name === "ValidationError") {
       return res.status(400).json({ status: "error", message: error.message });
@@ -166,21 +164,19 @@ const updateUser = async (req, res) => {
         .json({ status: "error", message: "User not found." });
     }
 
-    res.json({ status: "success", data: updatedUser });
+    res.json({ success: "success", statusCode: 200, data: updatedUser });
   } catch (error) {
     console.error(`Error updating user ${req.params.userId}:`, error);
     if (error.name === "ValidationError") {
       return res.status(400).json({ status: "error", message: error.message });
     }
     if (error.code === 11000) {
-      return res
-        .status(409)
-        .json({
-          status: "error",
-          message: `Duplicate key error during update. Field: ${Object.keys(
-            error.keyValue
-          )}`,
-        });
+      return res.status(409).json({
+        status: "error",
+        message: `Duplicate key error during update. Field: ${Object.keys(
+          error.keyValue
+        )}`,
+      });
     }
     res
       .status(500)
@@ -190,179 +186,185 @@ const updateUser = async (req, res) => {
 
 // GET /api/enroll/progress/:id - Lấy thông tin tiến trình đăng ký
 const getEnrollmentProgress = async (req, res) => {
-    const { id } = req.params;
-    
-    try {
-        const progress = websocketService.getEnrollmentProgress(parseInt(id));
-        if (!progress) {
-            return res.status(404).json({
-                status: "error",
-                message: "No enrollment progress found for this ID"
-            });
-        }
+  const { id } = req.params;
 
-        res.json({
-            status: "success",
-            data: progress
-        });
-    } catch (error) {
-        console.error("Error getting enrollment progress:", error);
-        res.status(500).json({
-            status: "error",
-            message: "Failed to get enrollment progress"
-        });
+  try {
+    const progress = websocketService.getEnrollmentProgress(parseInt(id));
+    if (!progress) {
+      return res.status(404).json({
+        status: "error",
+        message: "No enrollment progress found for this ID",
+      });
     }
+
+    res.json({
+      status: "success",
+      data: progress,
+    });
+  } catch (error) {
+    console.error("Error getting enrollment progress:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to get enrollment progress",
+    });
+  }
 };
 
 // POST /api/enroll/request - Yêu cầu bắt đầu đăng ký vân tay
 const requestEnrollment = async (req, res) => {
-    const { name, msv } = req.body;
-    const deviceId = req.query.deviceId;
-
-    if (!deviceId) {
-        return res.status(400).json({ status: "error", message: "Device ID is required." });
-    }
-    if (!name) {
-        return res.status(400).json({ status: "error", message: "User name is required." });
-    }
-    if (!msv) {
-        return res.status(400).json({ status: "error", message: "MSV is required." });
-    }
-    if (!websocketService.clients.has(deviceId)) {
-        return res.status(400).json({
-            status: "error",
-            message: `Device ${deviceId} is not connected.`
-        });
-    }
-
-    let availableId;
-    try {
-        // 1. Kiểm tra xem msv đã tồn tại trong DB chưa
-        const existingUser = await User.findOne({ msv });
-        if (existingUser) {
-            return res.status(409).json({
-                status: "error",
-                message: `MSV ${msv} is already registered for another user.`
-            });
-        }
-
-        // 2. Tìm ID vị trí trống
-        availableId = await findAvailableTemplateId();
-
-        if (availableId === null) {
-            return res.status(503).json({
-                status: "error",
-                message: "No available fingerprint slot found or sensor is full."
-            });
-        }
-
-        // Lưu thông tin tiến trình đăng ký
-        websocketService.setEnrollmentProgress(availableId, {
-            status: "processing",
-            step: 0,
-            message: "Bắt đầu quá trình đăng ký vân tay",
-            name,
-            msv,
-            deviceId
-        });
-
-        console.log(`Attempting to start enrollment for user ${name} with template ID ${availableId} on device ${deviceId}`);
-
-        // 3. Gửi yêu cầu tới ESP và chờ phản hồi
-        const enrollResponse = await websocketService.requestEnrollmentOnDevice(deviceId, availableId);
-
-        // 4. Xử lý kết quả thành công từ ESP
-        if (enrollResponse.status === "success") {
-            const newUser = new User({
-                name: name,
-                msv: msv,
-                id: availableId
-            });
-            await newUser.save();
-            
-            // Cập nhật thông tin tiến trình
-            websocketService.setEnrollmentProgress(availableId, {
-                status: "success",
-                step: 100,
-                message: "Đăng ký vân tay thành công",
-                name,
-                msv,
-                deviceId
-            });
-
-            console.log(`Successfully enrolled and saved user ${name} with template ID ${availableId}`);
-            res.status(201).json({
-                status: "success",
-                message: "Enrollment successful!",
-                data: newUser
-            });
-        }
-    } catch (error) {
-        console.error("Error during enrollment request:", error);
-        // Cập nhật thông tin tiến trình khi có lỗi
-        if (availableId) {
-            websocketService.setEnrollmentProgress(availableId, {
-                status: "error",
-                step: 0,
-                message: error.message,
-                name,
-                msv,
-                deviceId
-            });
-        }
-        if (error.message.includes("timed out")) {
-            res
-                .status(408)
-                .json({
-                    status: "error",
-                    message: `Enrollment timed out: ${error.message}`
-                });
-        } else if (error.message.includes("Failed to send enroll command")) {
-            res.status(502).json({ status: "error", message: error.message });
-        } else if (error.code === 11000) {
-            res.status(409).json({
-                status: "error",
-                message: `Duplicate key error saving user. Field: ${Object.keys(
-                    error.keyValue
-                )}`
-            });
-        } else if (
-            error.message.includes(
-                "Internal error while finding available template ID"
-            )
-        ) {
-            res.status(500).json({ status: "error", message: error.message });
-        } else {
-            res
-                .status(500)
-                .json({
-                    status: "error",
-                    message: error.message || "Enrollment failed."
-                });
-        }
-    }
-};
-
-// DELETE /api/users/:userId - Bắt đầu quá trình xóa người dùng/vân tay
-const initiateDeleteUser = async (req, res) => {
-  const userIdToDelete = req.params.userId;
+  const { name, msv } = req.body;
   const deviceId = req.query.deviceId;
 
   if (!deviceId) {
     return res
       .status(400)
-      .json({
-        status: "error",
-        message: "Device ID is required for deletion.",
-      });
+      .json({ status: "error", message: "Device ID is required." });
   }
-  if (!websocketService.clients.has(deviceId)) {
+  if (!name) {
     return res
       .status(400)
-      .json({
+      .json({ status: "error", message: "User name is required." });
+  }
+  if (!msv) {
+    return res
+      .status(400)
+      .json({ status: "error", message: "MSV is required." });
+  }
+  if (!websocketService.clients.has(deviceId)) {
+    return res.status(400).json({
+      status: "error",
+      message: `Device ${deviceId} is not connected.`,
+    });
+  }
+
+  let availableId;
+  try {
+    // 1. Kiểm tra xem msv đã tồn tại trong DB chưa
+    const existingUser = await User.findOne({ msv });
+    if (existingUser) {
+      return res.status(409).json({
         status: "error",
-        message: `Device ${deviceId} is not connected.`,
+        message: `MSV ${msv} is already registered for another user.`,
       });
+    }
+
+    // 2. Tìm ID vị trí trống
+    availableId = await findAvailableTemplateId();
+
+    if (availableId === null) {
+      return res.status(503).json({
+        status: "error",
+        message: "No available fingerprint slot found or sensor is full.",
+      });
+    }
+
+    // Lưu thông tin tiến trình đăng ký
+    websocketService.setEnrollmentProgress(availableId, {
+      status: "processing",
+      step: 0,
+      message: "Bắt đầu quá trình đăng ký vân tay",
+      name,
+      msv,
+      deviceId,
+    });
+
+    console.log(
+      `Attempting to start enrollment for user ${name} with template ID ${availableId} on device ${deviceId}`
+    );
+
+    // 3. Gửi yêu cầu tới ESP và chờ phản hồi
+    const enrollResponse = await websocketService.requestEnrollmentOnDevice(
+      deviceId,
+      availableId
+    );
+
+    // 4. Xử lý kết quả thành công từ ESP
+    if (enrollResponse.status === "success") {
+      const newUser = new User({
+        name: name,
+        msv: msv,
+        id: availableId,
+      });
+      await newUser.save();
+
+      // Cập nhật thông tin tiến trình
+      websocketService.setEnrollmentProgress(availableId, {
+        status: "success",
+        step: 100,
+        message: "Đăng ký vân tay thành công",
+        name,
+        msv,
+        deviceId,
+      });
+
+      console.log(
+        `Successfully enrolled and saved user ${name} with template ID ${availableId}`
+      );
+      res.status(201).json({
+        status: "success",
+        message: "Enrollment successful!",
+        data: newUser,
+      });
+    }
+  } catch (error) {
+    console.error("Error during enrollment request:", error);
+    // Cập nhật thông tin tiến trình khi có lỗi
+    if (availableId) {
+      websocketService.setEnrollmentProgress(availableId, {
+        status: "error",
+        step: 0,
+        message: error.message,
+        name,
+        msv,
+        deviceId,
+      });
+    }
+    if (error.message.includes("timed out")) {
+      res.status(408).json({
+        status: "error",
+        message: `Enrollment timed out: ${error.message}`,
+      });
+    } else if (error.message.includes("Failed to send enroll command")) {
+      res.status(502).json({ status: "error", message: error.message });
+    } else if (error.code === 11000) {
+      res.status(409).json({
+        status: "error",
+        message: `Duplicate key error saving user. Field: ${Object.keys(
+          error.keyValue
+        )}`,
+      });
+    } else if (
+      error.message.includes(
+        "Internal error while finding available template ID"
+      )
+    ) {
+      res.status(500).json({ status: "error", message: error.message });
+    } else {
+      res.status(500).json({
+        status: "error",
+        message: error.message || "Enrollment failed.",
+      });
+    }
+  }
+};
+
+// DELETE /api/users/:userId - Bắt đầu quá trình xóa người dùng/vân tay
+const initiateDeleteUser = async (req, res) => {
+  const userIdToDelete = req.params.userId;
+  const deviceId = "ESP_CHAMCONG_01";
+  // if (!deviceId) {
+  //   return res
+  //     .status(400)
+  //     .json({
+  //       status: "error",
+  //       message: "Device ID is required for deletion.",
+  //     });
+  // }
+  if (!websocketService.clients.has(deviceId)) {
+    return res.status(400).json({
+      status: "error",
+      message: `Device ${deviceId} is not connected.`,
+    });
   }
 
   try {
@@ -408,7 +410,7 @@ const initiateDeleteUser = async (req, res) => {
       // Cập nhật trạng thái user trong DB (khuyến nghị)
       const updatedUser = await User.findOneAndUpdate(
         { userId: userIdToDelete },
-        { $set: { isActive: false, id: null } }, // Đặt là inactive và xóa liên kết vân tay
+        { $set: { isActive: false } }, // Đặt là inactive và xóa liên kết vân tay
         { new: true }
       ).lean();
 
@@ -416,7 +418,8 @@ const initiateDeleteUser = async (req, res) => {
         `Successfully deleted fingerprint ${fingerprintTemplateId} from device. User ${userIdToDelete} status updated in DB.`
       );
       res.json({
-        status: "success",
+        statusCode: 200,
+        success: "success",
         message:
           "Fingerprint deleted successfully from device and user updated.",
         data: updatedUser,
@@ -429,22 +432,18 @@ const initiateDeleteUser = async (req, res) => {
       error
     );
     if (error.message.includes("timed out")) {
-      res
-        .status(408)
-        .json({
-          status: "error",
-          message: `Deletion timed out: ${error.message}`,
-        });
+      res.status(408).json({
+        status: "error",
+        message: `Deletion timed out: ${error.message}`,
+      });
     } else if (error.message.includes("Failed to send delete command")) {
       res.status(502).json({ status: "error", message: error.message });
     } else {
       // Các lỗi khác từ ESP (reject từ requestDeletionOnDevice) hoặc lỗi DB
-      res
-        .status(500)
-        .json({
-          status: "error",
-          message: error.message || "Deletion failed.",
-        });
+      res.status(500).json({
+        status: "error",
+        message: error.message || "Deletion failed.",
+      });
     }
   }
 };
@@ -455,5 +454,5 @@ module.exports = {
   updateUser,
   requestEnrollment,
   initiateDeleteUser,
-  getEnrollmentProgress
+  getEnrollmentProgress,
 };

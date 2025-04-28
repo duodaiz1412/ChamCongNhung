@@ -20,6 +20,8 @@ export interface ILogParam {
   pageSize?: number;
   fromDate?: string;
   toDate?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface IUser {

@@ -34,7 +34,7 @@ export function convertDate(date?: string | Date) {
 
 export function convertDateToTime(date?: string | Date) {
   if (!date) return "-";
-  const momentDate = moment.utc(date);
+  const momentDate = moment(date);
   return momentDate.format("HH:mm");
 }
 

@@ -74,28 +74,6 @@ export default function DetailAttendance() {
     }
   }, [data, refetch]);
 
-  // Thêm useEffect để lắng nghe SSE
-  useEffect(() => {
-    const eventSource = new EventSource('http://localhost:3000/api/device-status');
-    
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      // Nếu có thay đổi trạng thái thiết bị, refetch dữ liệu
-      if (data.isConnected) {
-        refetch();
-      }
-    };
-
-    eventSource.onerror = (error) => {
-      console.error('SSE Error:', error);
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [refetch]);
-
   // Lọc dữ liệu dựa trên các bộ lọc
   const filteredData = useMemo(() => {
     if (!data || !Array.isArray(data)) return [];

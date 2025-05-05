@@ -97,6 +97,13 @@ class WebSocketService extends EventEmitter {
         setInterval(() => {
             const now = Date.now();
             this.clients.forEach((client, deviceId) => {
+                // Kiểm tra nếu thiết bị đang trong quá trình đăng ký vân tay thì bỏ qua kiểm tra heartbeat
+                const isDeviceEnrolling = this.isDeviceEnrolling(deviceId);
+                if (isDeviceEnrolling) {
+                    console.log(`Skip heartbeat check for ${deviceId} - currently enrolling`);
+                    return;
+                }
+                
                 // Kiểm tra nếu client không phản hồi trong thời gian timeout
                 if (!client.isAlive || now - client.lastHeartbeatTime > this.heartbeatTimeout) {
                     console.log(`Client ${deviceId} is unresponsive (last heartbeat: ${new Date(client.lastHeartbeatTime).toISOString()}). Terminating connection.`);
@@ -119,6 +126,17 @@ class WebSocketService extends EventEmitter {
                 }
             });
         }, this.heartbeatInterval);
+    }
+
+    // Hàm kiểm tra xem thiết bị có đang trong quá trình đăng ký vân tay không
+    isDeviceEnrolling(deviceId) {
+        let isEnrolling = false;
+        this.pendingEnrollment.forEach((req, id) => {
+            if (req.deviceId === deviceId) {
+                isEnrolling = true;
+            }
+        });
+        return isEnrolling;
     }
 
     getWss() {
@@ -191,6 +209,11 @@ class WebSocketService extends EventEmitter {
                 progress.step = step || progress.step;
                 progress.message = message || progress.message;
                 this.enrollmentProgress.set(id, progress);
+                
+                // Phát sự kiện có cập nhật tiến trình
+                console.log(`Emitting enrollmentProgress event for ID ${id}: ${progress.status}, step ${progress.step}`);
+                console.log(`Event data:`, JSON.stringify(progress));
+                this.emit('enrollmentProgress', id, progress);
             }
 
             if (status === 'success') {
@@ -218,6 +241,9 @@ class WebSocketService extends EventEmitter {
 
     setEnrollmentProgress(id, progress) {
         this.enrollmentProgress.set(id, progress);
+        // Phát sự kiện khi cập nhật tiến trình
+        console.log(`Emitting enrollmentProgress event for ID ${id}: ${progress.status}, step ${progress.step}`);
+        this.emit('enrollmentProgress', id, progress);
     }
 
     requestDeletionOnDevice(deviceId, templateId, timeout = 10000) {

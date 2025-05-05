@@ -272,53 +272,60 @@ const requestEnrollment = async (req, res) => {
       `Attempting to start enrollment for user ${name} with template ID ${availableId} on device ${deviceId}`
     );
 
-    // 3. Gửi yêu cầu tới ESP và chờ phản hồi
-    const enrollResponse = await websocketService.requestEnrollmentOnDevice(
-      deviceId,
-      availableId
-    );
-
-    // 4. Xử lý kết quả thành công từ ESP
-    if (enrollResponse.status === "success") {
-      const newUser = new User({
-        name: name,
-        msv: msv,
+    // Trả về availableId cho client ngay lập tức để kết nối SSE
+    res.status(200).json({
+      status: "processing",
+      message: "Enrollment process started",
+      data: {
         id: availableId,
-      });
-      await newUser.save();
-
-      // Cập nhật thông tin tiến trình
-      websocketService.setEnrollmentProgress(availableId, {
-        status: "success",
-        step: 100,
-        message: "Đăng ký vân tay thành công",
         name,
-        msv,
-        deviceId,
+        msv
+      }
+    });
+
+    // Sử dụng requestEnrollmentOnDevice nhưng không await
+    websocketService.requestEnrollmentOnDevice(deviceId, availableId)
+      .then(async (enrollResponse) => {
+        // Xử lý kết quả thành công từ ESP
+        if (enrollResponse.status === "success") {
+          const newUser = new User({
+            name: name,
+            msv: msv,
+            id: availableId,
+          });
+          await newUser.save();
+
+          // Cập nhật thông tin tiến trình
+          websocketService.setEnrollmentProgress(availableId, {
+            status: "success",
+            step: 100,
+            message: "Đăng ký vân tay thành công",
+            name,
+            msv,
+            deviceId,
+          });
+
+          console.log(
+            `Successfully enrolled and saved user ${name} with template ID ${availableId}`
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Error during enrollment:", error);
+        // Cập nhật thông tin tiến trình khi có lỗi
+        websocketService.setEnrollmentProgress(availableId, {
+          status: "error",
+          step: 0,
+          message: error.message || "Lỗi trong quá trình đăng ký vân tay",
+          name,
+          msv,
+          deviceId,
+        });
       });
 
-      console.log(
-        `Successfully enrolled and saved user ${name} with template ID ${availableId}`
-      );
-      res.status(201).json({
-        status: "success",
-        message: "Enrollment successful!",
-        data: newUser,
-      });
-    }
   } catch (error) {
-    console.error("Error during enrollment request:", error);
-    // Cập nhật thông tin tiến trình khi có lỗi
-    if (availableId) {
-      websocketService.setEnrollmentProgress(availableId, {
-        status: "error",
-        step: 0,
-        message: error.message,
-        name,
-        msv,
-        deviceId,
-      });
-    }
+    console.error("Error setting up enrollment:", error);
+    // Trả về lỗi cho client nếu có lỗi trong quá trình thiết lập
     if (error.message.includes("timed out")) {
       res.status(408).json({
         status: "error",
@@ -448,6 +455,88 @@ const initiateDeleteUser = async (req, res) => {
   }
 };
 
+// GET /api/enroll/progress-stream/:id - Stream tiến trình đăng ký qua SSE
+const streamEnrollmentProgress = async (req, res) => {
+  const { id } = req.params;
+  const enrollmentId = parseInt(id);
+
+  if (isNaN(enrollmentId)) {
+    return res.status(400).json({
+      status: "error",
+      message: "ID không hợp lệ",
+    });
+  }
+
+  // Thêm headers CORS
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  console.log(`SSE client connected for enrollment ID ${enrollmentId}`);
+
+  // Gửi tiến trình hiện tại ngay lập tức nếu có
+  const currentProgress = websocketService.getEnrollmentProgress(enrollmentId);
+  if (currentProgress) {
+    console.log(`Sending initial progress for ID ${enrollmentId}:`, currentProgress);
+    res.write(`data: ${JSON.stringify(currentProgress)}\n\n`);
+  } else {
+    console.log(`No progress found for ID ${enrollmentId}, sending not_found status`);
+    res.write(`data: ${JSON.stringify({ status: 'not_found', message: 'Không tìm thấy tiến trình đăng ký', step: 0 })}\n\n`);
+  }
+
+  // Lắng nghe sự kiện cập nhật tiến trình
+  const progressListener = (id, progress) => {
+    if (id === enrollmentId) {
+      try {
+        console.log(`[SSE] Sending enrollment progress update for ID ${id}: ${progress.status}, step ${progress.step}`);
+        res.write(`data: ${JSON.stringify(progress)}\n\n`);
+        
+        // Đóng kết nối sau khi hoàn thành hoặc lỗi
+        if (progress.status === 'success' || progress.status === 'error') {
+          console.log(`[SSE] Closing connection for ID ${id} due to status ${progress.status}`);
+          websocketService.off('enrollmentProgress', progressListener);
+          clearInterval(keepAliveInterval);
+          res.end();
+        }
+      } catch (err) {
+        console.error(`[SSE] Error sending progress update for ID ${id}:`, err);
+      }
+    }
+  };
+
+  websocketService.on('enrollmentProgress', progressListener);
+
+  // Gửi keep-alive để tránh đóng kết nối
+  const keepAliveInterval = setInterval(() => {
+    try {
+      res.write(': keep-alive\n\n');
+    } catch (err) {
+      console.error(`[SSE] Error sending keep-alive for ID ${enrollmentId}:`, err);
+      websocketService.off('enrollmentProgress', progressListener);
+      clearInterval(keepAliveInterval);
+      res.end();
+    }
+  }, 20000);
+
+  // Xử lý khi client ngắt kết nối
+  req.on('close', () => {
+    console.log(`SSE client disconnected from enrollment progress stream for ID ${enrollmentId}`);
+    websocketService.off('enrollmentProgress', progressListener);
+    clearInterval(keepAliveInterval);
+    res.end();
+  });
+  
+  // Xử lý lỗi kết nối
+  res.on('error', (err) => {
+    console.error(`Error on SSE response stream for enrollment ID ${enrollmentId}:`, err);
+    websocketService.off('enrollmentProgress', progressListener);
+    clearInterval(keepAliveInterval);
+    res.end();
+  });
+};
+
 module.exports = {
   getUsers,
   addUser,
@@ -455,4 +544,5 @@ module.exports = {
   requestEnrollment,
   initiateDeleteUser,
   getEnrollmentProgress,
+  streamEnrollmentProgress,
 };

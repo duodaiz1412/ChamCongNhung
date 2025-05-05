@@ -8,11 +8,14 @@
 #include <WiFiUdp.h>
 
 // --- WiFi Credentials ---
-const char *ssid = "PTIT_WIFI"; // Thay bằng tên WiFi của bạn
-const char *password = ""; // Thay bằng mật khẩu WiFi
+// const char *ssid = "PTIT_WIFI"; // Thay bằng tên WiFi của bạn
+// const char *password = ""; // Thay bằng mật khẩu WiFi
+// const char *WS_HOST = "172.11.245.36"; // Thay bằng IP của máy chủ
+const char *ssid = "217 Tran Phu"; // Thay bằng tên WiFi của bạn
+const char *password = "chothuephong"; // Thay bằng mật khẩu WiFi
+const char *WS_HOST = "192.168.1.246"; // Thay bằng IP của máy chủ
 
 // --- Backend WebSocket Server ---
-const char *WS_HOST = "172.11.245.36"; // Thay bằng IP của máy chủ
 const uint16_t WS_PORT = 3000;       // Port của máy chủ
 
 // --- Device ID ---
@@ -39,6 +42,9 @@ unsigned long lastReconnectAttempt = 0;
 const unsigned long reconnectInterval = 5000; // Thử kết nối lại sau 5 giây
 unsigned long lastHeartbeatSent = 0;
 const unsigned long heartbeatInterval = 10000; // Gửi heartbeat mỗi 10 giây
+
+// Thêm biến toàn cục để theo dõi trạng thái đăng ký
+bool isEnrolling = false;
 
 // --- Function Declarations ---
 void displayStatus(String line1, String line2 = "");
@@ -238,6 +244,7 @@ void sendHeartbeat() {
 }
 
 void handleEnrollCommand(int id) {
+    isEnrolling = true; // Đánh dấu bắt đầu đăng ký
     Serial.printf("Starting enrollment process for ID: %d\n", id);
     StaticJsonDocument<150> statusPayload;
     statusPayload["id"] = id;
@@ -257,10 +264,10 @@ void handleEnrollCommand(int id) {
     unsigned long stepStartTime = millis();
     while (p != FINGERPRINT_OK) {
         p = finger.getImage();
-        if (!isWebSocketConnected || millis() - stepStartTime > 15000) {
-            displayStatus("WS Disconnected or Timeout", "Enroll Cancelled");
+        if (millis() - stepStartTime > 15000) {
+            displayStatus("Timeout", "Enroll Cancelled");
             statusPayload["status"] = "error";
-            statusPayload["message"] = !isWebSocketConnected ? "WebSocket disconnected" : "Timeout waiting for finger (1st)";
+            statusPayload["message"] = "Timeout waiting for finger (1st)";
             sendWebSocketMessage("enroll_status", statusPayload);
             delay(2000);
             displayStatus("Moi dat van tay");
@@ -312,10 +319,10 @@ void handleEnrollCommand(int id) {
     stepStartTime = millis();
     while (p != FINGERPRINT_NOFINGER) {
         p = finger.getImage();
-        if (!isWebSocketConnected || millis() - stepStartTime > 5000) {
-            displayStatus("WS Disconnected or Timeout", "Enroll Cancelled");
+        if (millis() - stepStartTime > 5000) {
+            displayStatus("Timeout", "Enroll Cancelled");
             statusPayload["status"] = "error";
-            statusPayload["message"] = !isWebSocketConnected ? "WebSocket disconnected" : "Timeout waiting for finger removal";
+            statusPayload["message"] = "Timeout waiting for finger removal";
             sendWebSocketMessage("enroll_status", statusPayload);
             delay(2000);
             displayStatus("Moi dat van tay");
@@ -335,10 +342,10 @@ void handleEnrollCommand(int id) {
     stepStartTime = millis();
     while (p != FINGERPRINT_OK) {
         p = finger.getImage();
-        if (!isWebSocketConnected || millis() - stepStartTime > 15000) {
-            displayStatus("WS Disconnected or Timeout", "Enroll Cancelled");
+        if (millis() - stepStartTime > 15000) {
+            displayStatus("Timeout", "Enroll Cancelled");
             statusPayload["status"] = "error";
-            statusPayload["message"] = !isWebSocketConnected ? "WebSocket disconnected" : "Timeout waiting for finger (2nd)";
+            statusPayload["message"] = "Timeout waiting for finger (2nd)";
             sendWebSocketMessage("enroll_status", statusPayload);
             delay(2000);
             displayStatus("Moi dat van tay");
@@ -396,6 +403,7 @@ void handleEnrollCommand(int id) {
         sendWebSocketMessage("enroll_status", statusPayload);
         delay(2000);
     }
+    isEnrolling = false; // Đánh dấu kết thúc đăng ký
     displayStatus("Moi dat van tay");
 }
 
@@ -544,8 +552,8 @@ void setup() {
 void loop() {
     webSocket.loop();
 
-    // Gửi heartbeat định kỳ
-    if (isWebSocketConnected && millis() - lastHeartbeatSent > heartbeatInterval) {
+    // Gửi heartbeat định kỳ (chỉ khi không trong quá trình đăng ký)
+    if (isWebSocketConnected && !isEnrolling && millis() - lastHeartbeatSent > heartbeatInterval) {
         sendHeartbeat();
         lastHeartbeatSent = millis();
         Serial.println("Sent heartbeat to server");
@@ -567,13 +575,13 @@ void loop() {
         lastHeapCheck = millis();
     }
 
-    // Thử kết nối lại nếu mất kết nối
-    if (!isWebSocketConnected && millis() - lastReconnectAttempt > reconnectInterval) {
+    // Thử kết nối lại nếu mất kết nối (nhưng chỉ khi không đang đăng ký)
+    if (!isWebSocketConnected && !isEnrolling && millis() - lastReconnectAttempt > reconnectInterval) {
         connectWebSocket();
     }
 
-    // Cảnh báo nếu mất kết nối
-    if (!isWebSocketConnected) {
+    // Cảnh báo nếu mất kết nối (nhưng chỉ khi không đang đăng ký)
+    if (!isWebSocketConnected && !isEnrolling) {
         static unsigned long lastWarningTime = 0;
         if (millis() - lastWarningTime > 10000) {
             displayStatus("WS Disconnected", "Trying to connect");
@@ -581,8 +589,8 @@ void loop() {
         }
     }
 
-    // Xử lý quét vân tay
-    if (isWebSocketConnected) {
+    // Xử lý quét vân tay (chỉ khi đã kết nối và không đang đăng ký)
+    if (isWebSocketConnected && !isEnrolling) {
         processFingerprintScan();
     }
 

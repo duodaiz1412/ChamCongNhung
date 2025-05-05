@@ -22,5 +22,6 @@ router.delete('/users/:userId', userController.initiateDeleteUser); // Xóa user
 // Fingerprint Enrollment
 router.post('/enroll/request', userController.requestEnrollment); // Yêu cầu bắt đầu đăng ký
 router.get('/enroll/progress/:id', userController.getEnrollmentProgress);
+router.get('/enroll/progress-stream/:id', userController.streamEnrollmentProgress); // SSE stream cho tiến trình đăng ký
 
 module.exports = router;

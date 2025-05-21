@@ -52,6 +52,12 @@ const getLogs = async (req, res) => {
       .limit(pageSize)
       .lean(); // Trả về plain JS objects
 
+    // Giữ nguyên timestamp UTC
+    const logsWithLocalTime = logs.map(log => ({
+      ...log,
+      timestamp: log.timestamp
+    }));
+
     const totalLogs = await AttendanceLog.countDocuments(filter);
     const totalPages = Math.ceil(totalLogs / pageSize);
 
@@ -60,7 +66,7 @@ const getLogs = async (req, res) => {
       statusCode: 200,
       message: "Logs fetched successfully",
       data: {
-        data: logs,
+        data: logsWithLocalTime,
         page,
         pageSize,
         totalPages,

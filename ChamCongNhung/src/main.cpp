@@ -8,12 +8,12 @@
 #include <WiFiUdp.h>
 
 // --- WiFi Credentials ---
-// const char *ssid = "PTIT_WIFI"; // Thay bằng tên WiFi của bạn
-// const char *password = ""; // Thay bằng mật khẩu WiFi
-// const char *WS_HOST = "172.11.245.36"; // Thay bằng IP của máy chủ
-const char *ssid = "217 Tran Phu"; // Thay bằng tên WiFi của bạn
-const char *password = "chothuephong"; // Thay bằng mật khẩu WiFi
-const char *WS_HOST = "192.168.1.246"; // Thay bằng IP của máy chủ
+const char *ssid = "PTIT_WIFI"; // Thay bằng tên WiFi của bạn
+const char *password = ""; // Thay bằng mật khẩu WiFi
+const char *WS_HOST = "172.11.73.90"; // Thay bằng IP của máy chủ
+// const char *ssid = "217 Tran Phu"; // Thay bằng tên WiFi của bạn
+// const char *password = "chothuephong"; // Thay bằng mật khẩu WiFi
+// const char *WS_HOST = "192.168.1.215"; // Thay bằng IP của máy chủ
 
 // --- Backend WebSocket Server ---
 const uint16_t WS_PORT = 3000;       // Port của máy chủ
@@ -714,5 +714,119 @@ void loop() {
 
 // void loop() {
 //     // Do nothing, program halts after clearing
+//     delay(1000);
+// }
+
+// ** Code to see Maximum fingerprint capacity of fingerprint database **
+
+// #include <Adafruit_Fingerprint.h>
+// #include <Adafruit_GFX.h>
+// #include <Adafruit_SSD1306.h>
+
+// // --- Hardware Pins ---
+// #define SCREEN_WIDTH 128
+// #define SCREEN_HEIGHT 32
+// #define BUZZER_PIN D7
+// #define FINGERPRINT_RX D5
+// #define FINGERPRINT_TX D6
+
+// // --- Objects ---
+// Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+// SoftwareSerial mySerial(FINGERPRINT_RX, FINGERPRINT_TX);
+// Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+
+// // --- Function to Display Status ---
+// void displayStatus(String line1, String line2 = "") {
+//     display.clearDisplay();
+//     display.setCursor(0, 0);
+//     display.println(line1);
+//     if (line2 != "") {
+//         display.setCursor(0, 10);
+//         display.println(line2);
+//     }
+//     display.display();
+// }
+
+// void setup() {
+//     Serial.begin(115200);
+//     mySerial.begin(57600);
+
+//     // Initialize Buzzer
+//     pinMode(BUZZER_PIN, OUTPUT);
+//     digitalWrite(BUZZER_PIN, LOW);
+
+//     // Initialize OLED Display
+//     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+//         Serial.println(F("SSD1306 initialization failed"));
+//         for (;;); // Halt if display fails
+//     }
+//     display.clearDisplay();
+//     display.setTextColor(WHITE);
+//     display.setTextSize(1);
+//     display.setCursor(0, 0);
+//     display.println("Initializing...");
+//     display.display();
+
+//     // Initialize Fingerprint Sensor
+//     finger.begin(57600);
+//     delay(50);
+//     if (finger.verifyPassword()) {
+//         Serial.println("Found fingerprint sensor!");
+//         displayStatus("Sensor Found");
+//     } else {
+//         Serial.println("Fingerprint sensor not found!");
+//         displayStatus("Sensor Error!");
+//         while (1) {
+//             digitalWrite(BUZZER_PIN, HIGH);
+//             delay(100);
+//             digitalWrite(BUZZER_PIN, LOW);
+//             delay(100);
+//         }
+//     }
+
+//     // Get sensor parameters to check capacity
+//     Serial.println("Reading sensor parameters...");
+//     displayStatus("Checking Capacity...");
+//     uint8_t p = finger.getParameters();
+//     if (p == FINGERPRINT_OK) {
+//         // Get the maximum template capacity
+//         uint16_t maxTemplates = finger.capacity; // Capacity is provided by the library
+//         Serial.print("Maximum fingerprint capacity: ");
+//         Serial.print(maxTemplates);
+//         Serial.println(" templates");
+//         displayStatus("Max Capacity:", String(maxTemplates) + " templates");
+
+//         // Get current template count for reference
+//         finger.getTemplateCount();
+//         Serial.print("Current templates stored: ");
+//         Serial.print(finger.templateCount);
+//         Serial.println(" templates");
+//         displayStatus("Max: " + String(maxTemplates), "Used: " + String(finger.templateCount));
+//     } else {
+//         Serial.println("Failed to read sensor parameters");
+//         displayStatus("Param Error");
+//         if (p == FINGERPRINT_PACKETRECIEVEERR) {
+//             Serial.println("Communication error");
+//             displayStatus("Comm Error");
+//         } else {
+//             Serial.println("Unknown error");
+//             displayStatus("Unknown Error");
+//         }
+//         digitalWrite(BUZZER_PIN, HIGH);
+//         delay(100);
+//         digitalWrite(BUZZER_PIN, LOW);
+//         delay(100);
+//         digitalWrite(BUZZER_PIN, HIGH);
+//         delay(100);
+//         digitalWrite(BUZZER_PIN, LOW);
+//     }
+
+//     // Indicate completion
+//     Serial.println("Capacity check complete.");
+//     displayStatus("Check Complete", "See Serial");
+// }
+
+// void loop() {
+//     // Do nothing, program halts after checking
 //     delay(1000);
 // }
